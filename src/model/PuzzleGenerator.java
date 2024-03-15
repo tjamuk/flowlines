@@ -107,6 +107,7 @@ public class PuzzleGenerator extends Game
             }
             if (path.isEmpty()) //if path is empty, try initialising the path with all unvisited nodes.
             {
+
                 for (int node : unvisited.parallelStream().toList())
                 {
                     addNode(node, path.id);
@@ -124,6 +125,13 @@ public class PuzzleGenerator extends Game
             }
             else
             {
+                for (int node : path.getSequence())
+                {
+                    System.out.print(idToCell[node]);
+                    System.out.print(", ");
+                }
+                System.out.println();
+
                 first = path.peek(); //the front of the path.
                 second = path.peekSecond(); //2nd front of the path (behind first)
                 ArrayList<Integer> neighbours = new ArrayList<>(); //an ordered sequence of neighbours to visit
@@ -142,11 +150,15 @@ public class PuzzleGenerator extends Game
                         {
                             return true;
                         }
+                        System.out.print("removing ");
+                        System.out.println(idToCell[neighbour]);
                         removeNode(neighbour);
                         path.isAtDeadend = false;
                     }
                     else
                     {
+                        System.out.print("removing ");
+                        System.out.println(idToCell[neighbour]);
                         removeNode(neighbour);
                     }
                 }
@@ -174,6 +186,22 @@ public class PuzzleGenerator extends Game
      */
     public void getValidNeighbours(ArrayList<Integer> visitOrder, int first, int second)
     {
+        System.out.print("    in getValidNeighbours( first = ");
+        System.out.print(first);
+        if (first != Path.NULL_VALUE)
+        {
+            System.out.print(" - ");
+            System.out.print(idToCell[first]);
+        }
+        System.out.print(", second = ");
+        System.out.print(second);
+        if (second != Path.NULL_VALUE)
+        {
+            System.out.print(" - ");
+            System.out.print(idToCell[second]);
+        }
+        System.out.println(" )");
+
         Set<Integer> neighbours = Game.edges.get(first);
 
         if (second != Path.NULL_VALUE)
@@ -185,23 +213,39 @@ public class PuzzleGenerator extends Game
 
         for (int neighbour : neighbours)
         {
+            System.out.print("      neighbour ");
+            System.out.print(idToCell[neighbour]);
             if (unvisited.contains(neighbour))
             {
                 hasFoundRedundantNode = false;
 
                 //finds redundant nodes where for each neighbour, need to check if it could've been visited earlier in the path.
+                System.out.print("            has neighbours ");
+                System.out.println(Game.edges.get(neighbour));
                 for (int nn : Game.edges.get(neighbour))
                 {
+                    System.out.print("\n            neighbour to neighbour ");
+                    System.out.print(idToCell[nn]);
+                    System.out.print(" - nn != first = ");
+                    System.out.print(nn != first);
+                    System.out.print("; redundant = ");
+                    System.out.print(paths.peek().contains(nn));
                     if (nn != first && paths.peek().contains(nn))
                     {
-                            hasFoundRedundantNode = true;
-                            break;
+                        System.out.println("\n            -> is redundant - INVALID");
+                        hasFoundRedundantNode = true;
+                        break;
                     }
                 }
                 if (!hasFoundRedundantNode)
                 {
+                    System.out.println(" -> VALID");
                     visitOrder.add(neighbour);
                 }
+            }
+            else
+            {
+                System.out.println(" -> has been visited before - INVALID");
             }
         }
 

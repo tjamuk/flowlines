@@ -29,12 +29,12 @@ public class Game {
     /**
      * Each element at a node represents the equivalent cell of the node.
      */
-    protected static Cell[] idToCell;
+    public static Cell[] idToCell;
 
     /**
      * Each element at a cell represents the equivalent node of the cell.
      */
-    protected static int[][] cellToId;
+    public static int[][] cellToId;
 
     /**
      * 2 Arraylists representing a 2D array.
@@ -48,23 +48,40 @@ public class Game {
      * Adds the edges.
      */
     protected void addEdges() {
+        System.out.println("addEdges()");
+
         Game.edges = new ArrayList<>(size);
         Cell cell;
         int neighbourCol;
         int neighbourRow;
 
-        for (int id = 0; id < size; id++) {
+        for (int id = 0; id < size; id++)
+        {
+            System.out.print("    node ");
+            System.out.print(id);
+            System.out.print(" - ");
+            System.out.println(idToCell[id]);
             Game.edges.add(new HashSet<>());
             cell = Game.idToCell[id];
-            for (Cell addendPair : addendsToFindNeighbours) {
+            for (Cell addendPair : addendsToFindNeighbours)
+            {
                 neighbourCol = cell.getCol() + addendPair.getCol();
                 neighbourRow = cell.getRow() + addendPair.getRow();
 
-                if (isNodeInGrid(neighbourCol, neighbourRow)) {
+                if (isNodeInGrid(neighbourCol, neighbourRow))
+                {
                     Game.edges.get(id).add(Game.cellToId[neighbourCol][neighbourRow]); //if valid neighbour, add to hashset.
+                    System.out.print("      ");
+                    System.out.println(new Cell(neighbourCol, neighbourRow));
                 }
             }
+            System.out.print("      ");
+            System.out.println(Game.edges.get(id));
         }
+        System.out.println("-----------------------------------------");
+        System.out.println("-----------------------------------------");
+        System.out.println("-----------------------------------------");
+        System.out.println("-----------------------------------------");
     }
 
     /**
@@ -129,5 +146,13 @@ public class Game {
                         row >= 0 &&
                         row < height
         );
+    }
+
+    /**
+     * debug
+     */
+    public Set<Integer> getNeighbours(int node)
+    {
+        return edges.get(node);
     }
 }
