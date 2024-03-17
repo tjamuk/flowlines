@@ -84,6 +84,26 @@ public class Game {
         System.out.println("-----------------------------------------");
     }
 
+    public static ArrayList<Integer> getEdges(int id)
+    {
+        ArrayList<Integer> neighbours = new ArrayList<>();
+        int neighbourCol;
+        int neighbourRow;
+        Cell cell = idToCell[id];
+
+        for (Cell addendPair : addendsToFindNeighbours)
+        {
+            neighbourCol = cell.getCol() + addendPair.getCol();
+            neighbourRow = cell.getRow() + addendPair.getRow();
+
+            if (isNodeInGrid(neighbourCol, neighbourRow))
+            {
+                neighbours.add(Game.cellToId[neighbourCol][neighbourRow]); //if valid neighbour, add to hashset.
+            }
+        }
+        return neighbours;
+    }
+
     /**
      * Constructor.
      * @param width the number of columns in the grid.
@@ -117,6 +137,25 @@ public class Game {
         }
 
         addEdges();
+
+        for (int id = 0; id < size; id++)
+        {
+            System.out.print("    ");
+            System.out.print(idToCell[id]);
+            System.out.print(" --> ");
+            Game.edges.add(new HashSet<>());
+            cell = Game.idToCell[id];
+            for (int neighbour : edges.get(id))
+            {
+                System.out.print(idToCell[neighbour]);
+                System.out.print(", ");
+            }
+            System.out.println();
+        }
+        System.out.println("-----------------------------------------");
+        System.out.println("-----------------------------------------");
+        System.out.println("-----------------------------------------");
+        System.out.println("-----------------------------------------");
     }
 
     /**
@@ -139,7 +178,7 @@ public class Game {
      * @param row - row of the node in the grid
      * @return true = node is in the grid.
      */
-    protected boolean isNodeInGrid(int col, int row) {
+    protected static boolean isNodeInGrid(int col, int row) {
         return (
                 col >= 0 &&
                         col < width &&

@@ -46,6 +46,9 @@ public class PuzzleGenerator extends Game
      */
     int[] visited;
 
+    int[] idToComponentId;
+    int[] idToComponentCause;
+
     /**
      * An ArrayList where each Set<Integer> is a connected component and each Integer of that set is a node.
      */
@@ -107,7 +110,6 @@ public class PuzzleGenerator extends Game
             }
             if (path.isEmpty()) //if path is empty, try initialising the path with all unvisited nodes.
             {
-
                 for (int node : unvisited.parallelStream().toList())
                 {
                     addNode(node, path.id);
@@ -141,6 +143,8 @@ public class PuzzleGenerator extends Game
                 for (int neighbour : neighbours)
                 {
                     addNode(neighbour, path.id);
+                    System.out.print("adding ");
+                    System.out.println(idToCell[neighbour]);
 
                     //if the size of any connected components is less than 3...
                     //  (But if one is less than 3 need to check whether it's adjacent to the front of the most recent path )
@@ -202,7 +206,8 @@ public class PuzzleGenerator extends Game
         }
         System.out.println(" )");
 
-        Set<Integer> neighbours = Game.edges.get(first);
+//        Set<Integer> neighbours = Game.edges.get(first);
+        Set<Integer> neighbours = new HashSet<>(Game.getEdges(first));
 
         if (second != Path.NULL_VALUE)
         {
@@ -221,8 +226,8 @@ public class PuzzleGenerator extends Game
 
                 //finds redundant nodes where for each neighbour, need to check if it could've been visited earlier in the path.
                 System.out.print("            has neighbours ");
-                System.out.println(Game.edges.get(neighbour));
-                for (int nn : Game.edges.get(neighbour))
+                System.out.println(Game.getEdges(neighbour));
+                for (int nn : Game.getEdges(neighbour)) //Game.edges.get(neighbour).parallelStream().toList()
                 {
                     System.out.print("\n            neighbour to neighbour ");
                     System.out.print(idToCell[nn]);
@@ -404,7 +409,7 @@ public class PuzzleGenerator extends Game
      */
     public boolean calculateConnectedComponents(int latestNode)
     {
-        Set<Integer> latestNodeNeighbours = Game.edges.get(latestNode);
+        Set<Integer> latestNodeNeighbours = new HashSet<>(Game.getEdges(latestNode));
         int lastComponentIndex = 0;
         boolean isGood;
 
@@ -440,6 +445,91 @@ public class PuzzleGenerator extends Game
         return true;
     }
 
+    public void newCalcConnectedComponents(int latestNode)
+    {
+//        Set<Integer> latestNodeNeighbours = Game.edges.get(latestNode);
+//        int lastComponentIndex = 0;
+//        boolean isGood;
+//
+//        idToComponentCause = new int[Game.size];
+//        idToComponentId = new int[Game.size];
+//
+//        Arrays.fill(idToComponentCause, NULL_INT_VALUE);
+//
+//
+//        components = new ArrayList<>();
+//
+//        if (paths.isEmpty())
+//        {
+//            components.add(new HashSet<>());
+//
+//            for (int node = 0; node < Game.size; node++)
+//            {
+//                components.get(0).add(node);
+//            }
+//            Arrays.fill(idToComponentId, 0);
+//        }
+//        else
+//        {
+//            Arrays.fill(idToComponentId, NULL_INT_VALUE);
+//
+//            for (Path path : paths)
+//            {
+//                for (int node : path.sequence)
+//                {
+//                    if (visited[node] == NULL_INT_VALUE)
+//                    {
+//                        for (int neighbour : Game.edges.get(0))
+//                        {
+//                            if (visited[neighbour] == NULL_INT_VALUE && colours[neighbour] == NO_COLOUR)
+//                            {
+//                                isGood = false;
+//                                components.add(new HashSet<>());
+//                                dfsNew(neighbour, lastComponentIndex, path.id); //adjust
+//
+//                                if (components.get(lastComponentIndex).size() < 3)
+//                                {
+//                                    for (int vertex : components.get(lastComponentIndex)) //if component too small, check if its adjacent to the latest node.
+//                                    {
+//                                        if (latestNodeNeighbours.contains(vertex))
+//                                        {
+//                                            isGood = true;
+//                                            break;
+//                                        }
+//                                    }
+//                                    if (!isGood) {return false;}
+//                                }
+//                                lastComponentIndex++;
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+    }
+
+    private void dfsNew(int vertexId, int componentIndex, int pathId)
+    {
+
+//        visited[vertexId] = pathId;
+//        components.get(componentIndex).add(vertexId);
+//
+//        for (int neighbour : Game.edges.get(vertexId))
+//        {
+//            if (colours[neighbour] == NO_COLOUR)
+//            {
+//                if (visited[neighbour] == NULL_INT_VALUE)
+//                {
+//                    dfsNew(neighbour, componentIndex, pathId);
+//                }
+//            }
+//            else if (colours[neighbour] == pathId)
+//            {
+//                visited[vertexId] = pathId;
+//            }
+//        }
+    }
+
     /**
      * Depth first search for finding connected components.
      * @param vertexId = the node.
@@ -461,7 +551,7 @@ public class PuzzleGenerator extends Game
         visited[vertexId] = componentIndex;
         components.get(componentIndex).add(vertexId);
 
-        for (int neighbour : Game.edges.get(vertexId))
+        for (int neighbour : Game.getEdges(vertexId))
         {
             if (colours[neighbour] == NO_COLOUR)
             {
