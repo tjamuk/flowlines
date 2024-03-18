@@ -100,6 +100,7 @@ public class PuzzleGenerator extends Game
         {
             if (paths.isEmpty())
             {
+                calculateConnectedComponents(0);
                 paths.push(new Path());
             }
             path = paths.peek();
@@ -110,7 +111,9 @@ public class PuzzleGenerator extends Game
             }
             if (path.isEmpty()) //if path is empty, try initialising the path with all unvisited nodes.
             {
-                for (int node : unvisited.parallelStream().toList())
+                //need to calculate components
+
+                for (int node : components.get(getSmallestComponent()).parallelStream().toList()) //start on the smallest component
                 {
                     addNode(node, path.id);
                     if (calculateConnectedComponents(node))
@@ -370,6 +373,30 @@ public class PuzzleGenerator extends Game
         }
     }
 
+    protected int getSmallestComponent()
+    {
+        if (components.isEmpty())
+        {
+            return 0;
+        }
+        else
+        {
+            int smallestIndex = 0;
+            int smallestSize = components.get(0).size();
+
+            for (int componentIndex = 1; componentIndex < components.size(); componentIndex++)
+            {
+                if (components.get(componentIndex).size() < smallestSize)
+                {
+                    smallestIndex = componentIndex;
+                    smallestSize = components.get(componentIndex).size();
+                }
+            }
+
+            return smallestIndex;
+        }
+    }
+
     public void outputConnectedComponents()
     {
         for (Set<Integer> component : components)
@@ -409,37 +436,50 @@ public class PuzzleGenerator extends Game
      */
     public boolean calculateConnectedComponents(int latestNode)
     {
-        Set<Integer> latestNodeNeighbours = new HashSet<>(Game.getEdges(latestNode));
-        int lastComponentIndex = 0;
-        boolean isGood;
-
-        visited = new int[Game.size];
-        Arrays.fill(visited, NULL_INT_VALUE);
         components = new ArrayList<>();
-        startPoints = new ArrayList<>();
+        visited = new int[Game.size];
 
-        for (int vertex = 0; vertex < size; vertex++)
+        if (paths.isEmpty())
         {
-            if (visited[vertex] == NULL_INT_VALUE && colours[vertex] == NO_COLOUR)
+            components.add(new HashSet<>());
+            for (int node = 0; node < Game.size; node++)
             {
-                isGood = false;
-                startPoints.add(new ArrayList<>());
-                components.add(new HashSet<>());
-                dfs(vertex, lastComponentIndex);
+                components.get(0).add(node);
+            }
+            Arrays.fill(visited, 0);
+        }
+        else
+        {
+            Set<Integer> latestNodeNeighbours = new HashSet<>(Game.getEdges(latestNode));
+            int lastComponentIndex = 0;
+            boolean isGood;
 
-                if (components.get(lastComponentIndex).size() < 3)
+            Arrays.fill(visited, NULL_INT_VALUE);
+            startPoints = new ArrayList<>();
+
+            for (int vertex = 0; vertex < size; vertex++)
+            {
+                if (visited[vertex] == NULL_INT_VALUE && colours[vertex] == NO_COLOUR)
                 {
-                    for (int node : components.get(lastComponentIndex)) //if component too small, check if its adjacent to the latest node.
+                    isGood = false;
+                    startPoints.add(new ArrayList<>());
+                    components.add(new HashSet<>());
+                    dfs(vertex, lastComponentIndex);
+
+                    if (components.get(lastComponentIndex).size() < 3)
                     {
-                        if (latestNodeNeighbours.contains(node))
+                        for (int node : components.get(lastComponentIndex)) //if component too small, check if its adjacent to the latest node.
                         {
-                            isGood = true;
-                            break;
+                            if (latestNodeNeighbours.contains(node))
+                            {
+                                isGood = true;
+                                break;
+                            }
                         }
+                        if (!isGood) {return false;}
                     }
-                    if (!isGood) {return false;}
+                    lastComponentIndex++;
                 }
-                lastComponentIndex++;
             }
         }
         return true;
