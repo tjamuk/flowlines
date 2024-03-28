@@ -8,11 +8,11 @@ public class Game {
      * Iterated over to find every potential neighbour of a node.
      * e.g. node = (5,5) ---> (5,5) + (-1,0) = (4,5) -> (5,5) + (1,0) = (6,5) -> ...
      */
-    private static final Cell[] addendsToFindNeighbours = {
-            new Cell(-1, 0),
-            new Cell(1, 0),
-            new Cell(0, 1),
-            new Cell(0, -1)
+    protected static final Cell[] addendsToFindNeighbours = {
+            new Cell(1, 0), //right
+            new Cell(-1, 0), //left
+            new Cell(0, 1), //down
+            new Cell(0, -1) //up
     };
 
     /**
@@ -48,7 +48,7 @@ public class Game {
      * Adds the edges.
      */
     protected void addEdges() {
-        System.out.println("addEdges()");
+//        System.out.println("addEdges()");
 
         Game.edges = new ArrayList<>(size);
         Cell cell;
@@ -57,10 +57,10 @@ public class Game {
 
         for (int id = 0; id < size; id++)
         {
-            System.out.print("    node ");
-            System.out.print(id);
-            System.out.print(" - ");
-            System.out.println(idToCell[id]);
+//            System.out.print("    node ");
+//            System.out.print(id);
+//            System.out.print(" - ");
+//            System.out.println(idToCell[id]);
             Game.edges.add(new HashSet<>());
             cell = Game.idToCell[id];
             for (Cell addendPair : addendsToFindNeighbours)
@@ -71,17 +71,17 @@ public class Game {
                 if (isNodeInGrid(neighbourCol, neighbourRow))
                 {
                     Game.edges.get(id).add(Game.cellToId[neighbourCol][neighbourRow]); //if valid neighbour, add to hashset.
-                    System.out.print("      ");
-                    System.out.println(new Cell(neighbourCol, neighbourRow));
+//                    System.out.print("      ");
+//                    System.out.println(new Cell(neighbourCol, neighbourRow));
                 }
             }
-            System.out.print("      ");
-            System.out.println(Game.edges.get(id));
+//            System.out.print("      ");
+//            System.out.println(Game.edges.get(id));
         }
-        System.out.println("-----------------------------------------");
-        System.out.println("-----------------------------------------");
-        System.out.println("-----------------------------------------");
-        System.out.println("-----------------------------------------");
+//        System.out.println("-----------------------------------------");
+//        System.out.println("-----------------------------------------");
+//        System.out.println("-----------------------------------------");
+//        System.out.println("-----------------------------------------");
     }
 
     public static ArrayList<Integer> getEdges(int id)
@@ -143,8 +143,8 @@ public class Game {
             System.out.print("    ");
             System.out.print(idToCell[id]);
             System.out.print(" --> ");
-            Game.edges.add(new HashSet<>());
-            cell = Game.idToCell[id];
+//            Game.edges.add(new HashSet<>());
+//            cell = Game.idToCell[id];
             for (int neighbour : edges.get(id))
             {
                 System.out.print(idToCell[neighbour]);

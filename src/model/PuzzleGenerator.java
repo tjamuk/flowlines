@@ -61,6 +61,16 @@ public class PuzzleGenerator extends Game
      */
     ArrayList<ArrayList<Integer>> startPoints;
 
+    private boolean foundGap;
+    private final static int[][] addendToAddends = {
+            {2,3},
+            {2,3},
+            {0,1},
+            {0,1}
+    };
+    private final static int directionCount = 4;
+    private static Cell[] cells;
+
     /**
      * The constructor for model.PuzzleGenerator.
      * @param width - the number of columns.
@@ -83,6 +93,8 @@ public class PuzzleGenerator extends Game
         {
             unvisited.add(id);
         }
+
+        cells = new Cell[3];
     }
 
     /**
@@ -100,7 +112,7 @@ public class PuzzleGenerator extends Game
         {
             if (paths.isEmpty())
             {
-                calculateConnectedComponents(0);
+//                calculateConnectedComponents(0);
                 paths.push(new Path());
             }
             path = paths.peek();
@@ -113,10 +125,11 @@ public class PuzzleGenerator extends Game
             {
                 //need to calculate components
 
+                calculateConnectedComponents(0);
                 for (int node : components.get(getSmallestComponent()).parallelStream().toList()) //start on the smallest component
                 {
-                    addNode(node, path.id);
-                    if (calculateConnectedComponents(node))
+                    addNode(node, path.id, false); //isTurn meaningless here.
+                    if (checkForSquares(idToCell[node]) && calculateConnectedComponents(node))
                     {
                         if (generatePuzzle())
                         {
@@ -130,6 +143,9 @@ public class PuzzleGenerator extends Game
             }
             else
             {
+                System.out.print("path ");
+                System.out.print(path.id);
+                System.out.print(" = ");
                 for (int node : path.getSequence())
                 {
                     System.out.print(idToCell[node]);
@@ -141,31 +157,31 @@ public class PuzzleGenerator extends Game
                 second = path.peekSecond(); //2nd front of the path (behind first)
                 ArrayList<Integer> neighbours = new ArrayList<>(); //an ordered sequence of neighbours to visit
 
-                getValidNeighbours(neighbours, first, second);
+                int straightOnNode = getValidNeighbours(neighbours, first, second);
 
                 for (int neighbour : neighbours)
                 {
-                    addNode(neighbour, path.id);
-                    System.out.print("adding ");
-                    System.out.println(idToCell[neighbour]);
+                    addNode(neighbour, path.id, straightOnNode!=neighbour);
+//                    System.out.print("adding ");
+//                    System.out.println(idToCell[neighbour]);
 
                     //if the size of any connected components is less than 3...
                     //  (But if one is less than 3 need to check whether it's adjacent to the front of the most recent path )
-                    if (calculateConnectedComponents(neighbour))
+                    if (path.areDirectionsValid() && checkForSquares(idToCell[neighbour]) && calculateConnectedComponents(neighbour))
                     {
                         if (generatePuzzle())
                         {
                             return true;
                         }
-                        System.out.print("removing ");
-                        System.out.println(idToCell[neighbour]);
+//                        System.out.print("removing ");
+//                        System.out.println(idToCell[neighbour]);
                         removeNode(neighbour);
                         path.isAtDeadend = false;
                     }
                     else
                     {
-                        System.out.print("removing ");
-                        System.out.println(idToCell[neighbour]);
+//                        System.out.print("removing ");
+//                        System.out.println(idToCell[neighbour]);
                         removeNode(neighbour);
                     }
                 }
@@ -182,7 +198,18 @@ public class PuzzleGenerator extends Game
                 }
             }
         }
-        return true;
+        else
+        {
+            if (!paths.isEmpty())
+            {
+                //                    calculateConnectedComponents(0);
+                return !paths.peek().isTooSmall();
+            }
+            else
+            {
+                return false;
+            }
+        }
     }
 
     /**
@@ -191,23 +218,23 @@ public class PuzzleGenerator extends Game
      * @param first - front of the most recent path.
      * @param second - 2nd to the front of the most recent path/
      */
-    public void getValidNeighbours(ArrayList<Integer> visitOrder, int first, int second)
+    public int getValidNeighbours(ArrayList<Integer> visitOrder, int first, int second)
     {
-        System.out.print("    in getValidNeighbours( first = ");
-        System.out.print(first);
-        if (first != Path.NULL_VALUE)
-        {
-            System.out.print(" - ");
-            System.out.print(idToCell[first]);
-        }
-        System.out.print(", second = ");
-        System.out.print(second);
-        if (second != Path.NULL_VALUE)
-        {
-            System.out.print(" - ");
-            System.out.print(idToCell[second]);
-        }
-        System.out.println(" )");
+//        System.out.print("    in getValidNeighbours( first = ");
+//        System.out.print(first);
+//        if (first != Path.NULL_VALUE)
+//        {
+//            System.out.print(" - ");
+//            System.out.print(idToCell[first]);
+//        }
+//        System.out.print(", second = ");
+//        System.out.print(second);
+//        if (second != Path.NULL_VALUE)
+//        {
+//            System.out.print(" - ");
+//            System.out.print(idToCell[second]);
+//        }
+//        System.out.println(" )");
 
 //        Set<Integer> neighbours = Game.edges.get(first);
         Set<Integer> neighbours = new HashSet<>(Game.getEdges(first));
@@ -221,43 +248,43 @@ public class PuzzleGenerator extends Game
 
         for (int neighbour : neighbours)
         {
-            System.out.print("      neighbour ");
-            System.out.print(idToCell[neighbour]);
+//            System.out.print("      neighbour ");
+//            System.out.print(idToCell[neighbour]);
             if (unvisited.contains(neighbour))
             {
                 hasFoundRedundantNode = false;
 
                 //finds redundant nodes where for each neighbour, need to check if it could've been visited earlier in the path.
-                System.out.print("            has neighbours ");
-                System.out.println(Game.getEdges(neighbour));
+//                System.out.print("            has neighbours ");
+//                System.out.println(Game.getEdges(neighbour));
                 for (int nn : Game.getEdges(neighbour)) //Game.edges.get(neighbour).parallelStream().toList()
                 {
-                    System.out.print("\n            neighbour to neighbour ");
-                    System.out.print(idToCell[nn]);
-                    System.out.print(" - nn != first = ");
-                    System.out.print(nn != first);
-                    System.out.print("; redundant = ");
-                    System.out.print(paths.peek().contains(nn));
+//                    System.out.print("\n            neighbour to neighbour ");
+//                    System.out.print(idToCell[nn]);
+//                    System.out.print(" - nn != first = ");
+//                    System.out.print(nn != first);
+//                    System.out.print("; redundant = ");
+//                    System.out.print(paths.peek().contains(nn));
                     if (nn != first && paths.peek().contains(nn))
                     {
-                        System.out.println("\n            -> is redundant - INVALID");
+//                        System.out.println("\n            -> is redundant - INVALID");
                         hasFoundRedundantNode = true;
                         break;
                     }
                 }
                 if (!hasFoundRedundantNode)
                 {
-                    System.out.println(" -> VALID");
+//                    System.out.println(" -> VALID");
                     visitOrder.add(neighbour);
                 }
             }
             else
             {
-                System.out.println(" -> has been visited before - INVALID");
+//                System.out.println(" -> has been visited before - INVALID");
             }
         }
 
-        reorderVisitOrder(visitOrder, first, second);
+        return reorderVisitOrder(visitOrder, first, second);
     }
 
     /**
@@ -266,9 +293,9 @@ public class PuzzleGenerator extends Game
      * Decides if the path will be going straight or not and then reorders it accordingly.
      * @param visitOrder - the order in which to visit the valid neighbours.
      * @param first - front of the most recent path.
-     * @param second - 2nd to the front of the most recent path/
+     * @param second - 2nd to the front of the most recent path.
      */
-    private void reorderVisitOrder(ArrayList<Integer> visitOrder, int first, int second)
+    private int reorderVisitOrder(ArrayList<Integer> visitOrder, int first, int second)
     {
         if (first != Path.NULL_VALUE && second != Path.NULL_VALUE)
         {
@@ -307,7 +334,9 @@ public class PuzzleGenerator extends Game
                     //else do nothing
                 }
             }
+            return straightOnNode;
         }
+        return NULL_INT_VALUE;
     }
 
     /**
@@ -316,6 +345,10 @@ public class PuzzleGenerator extends Game
      */
     private void removeNode(int node)
     {
+        System.out.print("removing ");
+        System.out.print(idToCell[node]);
+        System.out.print(" from path ");
+        System.out.println(paths.peek().id);
         paths.peek().remove();
         unvisited.add(node);
         colours[node] = NO_COLOUR;
@@ -325,9 +358,13 @@ public class PuzzleGenerator extends Game
      * Add a node.
      * @param node = the node to be added.
      */
-    private void addNode(int node, int pathId)
+    private void addNode(int node, int pathId, boolean isTurn)
     {
-        paths.peek().add(node);
+        System.out.print("adding ");
+        System.out.print(idToCell[node]);
+        System.out.print(" to path ");
+        System.out.println(paths.peek().id);
+        paths.peek().add(node, isTurn);
         unvisited.remove(node);
         colours[node] = pathId;
     }
@@ -343,11 +380,13 @@ public class PuzzleGenerator extends Game
 
     public void outputPaths()
     {
-        System.out.println(paths.size());
+//        System.out.println(paths.size());
 
-        Colour[][] grid = new Colour[width][height];
+        int[][] grid = new int[width][height];
         Cell cell;
         int colour = 0;
+
+        int pathSize = paths.size();
 
         while (!paths.isEmpty())
         {
@@ -355,7 +394,8 @@ public class PuzzleGenerator extends Game
             for (int node : paths.pop().getSequence())
             {
                 cell = Game.idToCell[node];
-                grid[cell.getCol()][cell.getRow()] = Colour.getEnumFromOrdinal(colour);
+                grid[cell.getCol()][cell.getRow()] = colour;
+                colours[node] = colour;
                 System.out.print(Game.idToCell[node]);
                 System.out.print(", ");
             }
@@ -363,13 +403,16 @@ public class PuzzleGenerator extends Game
             System.out.println("]");
         }
 
-        for (int row = 0; row < height; row++)
+        if (pathSize <= Colour.getColourCount())
         {
-            for (int col = 0; col < width; col++)
+            for (int row = 0; row < height; row++)
             {
-                System.out.print(Colour.getBackgroundFromOrdinal(grid[col][row].ordinal()) + "   ");
+                for (int col = 0; col < width; col++)
+                {
+                    System.out.print(Colour.getBackgroundFromOrdinal(grid[col][row]) + "   ");
+                }
+                System.out.println("\u001B[0m");
             }
-            System.out.println("\u001B[0m");
         }
     }
 
@@ -466,7 +509,7 @@ public class PuzzleGenerator extends Game
                     components.add(new HashSet<>());
                     dfs(vertex, lastComponentIndex);
 
-                    if (components.get(lastComponentIndex).size() < 3)
+                    if (components.get(lastComponentIndex).size() < 3) //size
                     {
                         for (int node : components.get(lastComponentIndex)) //if component too small, check if its adjacent to the latest node.
                         {
@@ -609,5 +652,180 @@ public class PuzzleGenerator extends Game
                 }
             }
         }
+    }
+
+    private boolean checkForSquares(Cell newNode)
+    {
+        cells[0] = newNode;
+
+        for (int direction = 0; direction < directionCount; direction++)
+        {
+            cells[1] = addCells(addendsToFindNeighbours[direction], newNode);
+
+            if (!isNodeInGrid(cells[1].getCol(), cells[1].getRow()) || colours[cellToId[cells[1].getCol()][cells[1].getRow()]] != NO_COLOUR)
+            {
+                for (int addend : addendToAddends[direction])
+                {
+                    cells[2] = addCells(addendsToFindNeighbours[addend], cells[1]);
+                    if (!isNodeInGrid(cells[2].getCol(), cells[2].getRow()) || colours[cellToId[cells[2].getCol()][cells[2].getRow()]] != NO_COLOUR)
+                    {
+                        if (!checkSquare())
+                        {
+                            System.out.println("Square found");
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean checkSquare()
+    {
+//        System.out.print("Entering checkSquare()\n      ");
+//        System.out.print(cells[0]); System.out.print(" <-- "); System.out.print(cells[1]); System.out.print(" <-- "); System.out.print(cells[2]);
+//        System.out.println();
+
+        Cell closestCorner = addCells(subtractCells(cells[0], cells[1]), cells[2]);
+        int x;
+        int y;
+
+        if (!Game.isNodeInGrid(closestCorner.getCol(), closestCorner.getRow()) || colours[cellToId[closestCorner.getCol()][closestCorner.getRow()]] != NO_COLOUR)
+        {
+            return true;
+        }
+
+        Set<Integer> corners = new HashSet<>(4);
+        corners.add(cellToId[closestCorner.getCol()][closestCorner.getRow()]);
+
+        for (Cell cell : cells)
+        {
+            x = 2 * closestCorner.getCol() - cell.getCol();
+            y = 2 * closestCorner.getRow() - cell.getRow();
+            // 1,4 --> !true || true --> false || true --> true
+            if (!Game.isNodeInGrid(x,y) || colours[cellToId[x][y]] != NO_COLOUR)
+            {
+                return true;
+            }
+
+            corners.add(cellToId[x][y]);
+        }
+
+        foundGap = false;
+
+        for (int corner : corners)
+        {
+            if (checkCorner(corner, corners))
+            {
+                if (foundGap)
+                {
+                    return true;
+                }
+                else
+                {
+                    foundGap = true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private Cell addCells(Cell a, Cell b)
+    {
+        return new Cell(
+                a.getCol() + b.getCol(),
+                a.getRow() + b.getRow()
+        );
+    }
+
+    private Cell subtractCells(Cell a, Cell b)
+    {
+        return new Cell(
+                a.getCol() - b.getCol(),
+                a.getRow() - b.getRow()
+        );
+    }
+
+    private boolean checkCorner(int corner, Set<Integer> corners)
+    {
+//        System.out.print("      Entering checkCorner( corner = ");
+//        System.out.print(idToCell[corner]);
+//        System.out.print(", corners = ");
+//        for (int c : corners)
+//        {
+//            System.out.print(idToCell[c]);
+//            System.out.print(", ");
+//        }
+//        System.out.println(") ");
+
+        boolean found = false;
+        ArrayList<Integer> neighbours = getFreeNeighbours(corner);
+
+//        System.out.print("            ");
+//        for (int n : neighbours)
+//        {
+//            System.out.print(idToCell[n]);
+//            System.out.print(",  ");
+//        }
+//        System.out.println();
+
+        for (int neighbour : neighbours)
+        {
+            if (!corners.contains(neighbour))
+            {
+                if (getFreeNeighbours(neighbour).size() > 1)
+                {
+                    if (found || foundGap)
+                    {
+//                        System.out.print("            ");
+//                        System.out.print(idToCell[neighbour]);
+//                        System.out.println(" has more than 1 free neighbour - already have 1 found");
+                        foundGap = true;
+                        return true;
+                    }
+                    else
+                    {
+//                        System.out.print("            ");
+//                        System.out.print(idToCell[neighbour]);
+//                        System.out.println(" has more than 1 cell - first found");
+                        found = true;
+                    }
+                }
+            }
+        }
+//        System.out.print("            returning, found = ");
+//        System.out.println(found);
+        return found;
+    }
+
+    public ArrayList<Integer> getFreeNeighbours(int id)
+    {
+        ArrayList<Integer> neighbours = new ArrayList<>();
+        int neighbourCol;
+        int neighbourRow;
+        Cell cell = idToCell[id];
+
+        for (Cell addendPair : addendsToFindNeighbours)
+        {
+            neighbourCol = cell.getCol() + addendPair.getCol();
+            neighbourRow = cell.getRow() + addendPair.getRow();
+
+            if (isNodeInGrid(neighbourCol, neighbourRow) && colours[Game.cellToId[neighbourCol][neighbourRow]] == NO_COLOUR)
+            {
+                neighbours.add(Game.cellToId[neighbourCol][neighbourRow]); //if valid neighbour, add to hashset.
+            }
+        }
+        return neighbours;
+    }
+
+    public void outputGoals()
+    {
+//        Path path;
+//        while (!paths.isEmpty())
+//        {
+//            path = paths.pop();
+//            System.out.print()
+//        }
     }
 }

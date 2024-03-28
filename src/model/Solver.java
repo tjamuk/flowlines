@@ -9,6 +9,12 @@ public class Solver extends Game {
      */
     int colourCount;
 
+    boolean[] visited;
+    Set<Integer> componentGoals;
+    Set<Integer> componentColours;
+    boolean[] areColoursPossibleToConnect;
+    int[] goalColours;
+
     /**
      * The paths of the colours.
      */
@@ -22,7 +28,8 @@ public class Solver extends Game {
     /**
      * An array where each element represents the colour held by a node.
      */
-    Colour[] colours;
+//    Colour[] colours;
+    int[] colours;
 
     /**
      * An arraylist of goals
@@ -30,6 +37,8 @@ public class Solver extends Game {
      */
     int[] startGoals;
     int[] endGoals;
+
+    static final int NO_COLOUR_VALUE = -1;
 
     /**
      * Only constructor for model.Game that initialises everything.
@@ -42,7 +51,8 @@ public class Solver extends Game {
     {
         super(width, height, false);
 
-        colours = new Colour[width*height];
+//        colours = new Colour[width*height];
+        colours = new int[width*height];
 
         colourCount = startGoals.size();
 
@@ -60,7 +70,8 @@ public class Solver extends Game {
             this.endGoals[colour] = Game.cellToId[cell.getCol()][cell.getRow()];
         }
 
-        Arrays.fill(colours, Colour.NONE);
+//        Arrays.fill(colours, Colour.NONE);
+        Arrays.fill(colours, NO_COLOUR_VALUE);
 
         addGoals();
         initialisePaths();
@@ -73,9 +84,13 @@ public class Solver extends Game {
     {
         for (int goalPairIndex = 0; goalPairIndex < colourCount; goalPairIndex++) //for every pair of goals...
         {
-            colours[startGoals[goalPairIndex]] = Colour.getEnumFromOrdinal(goalPairIndex);
-            colours[endGoals[goalPairIndex]] = Colour.getEnumFromOrdinal(goalPairIndex);
+//            colours[startGoals[goalPairIndex]] = Colour.getEnumFromOrdinal(goalPairIndex);
+//            colours[endGoals[goalPairIndex]] = Colour.getEnumFromOrdinal(goalPairIndex);
+
+            colours[startGoals[goalPairIndex]] = goalPairIndex;
+            colours[endGoals[goalPairIndex]] = goalPairIndex;
         }
+        goalColours = colours.clone();
     }
 
     /**
@@ -103,6 +118,8 @@ public class Solver extends Game {
      */
     private boolean isColourDone(int colour)
     {
+//        System.out.println(colour);
+//        System.out.println(endGoals[colour]);
         return paths.get(colour).getFirst().equals(endGoals[colour]);
     }
 
@@ -121,6 +138,18 @@ public class Solver extends Game {
         {
             if (!isColourDone(colour))
             {
+//                System.out.print(colour);
+//                System.out.print("'s path = ");
+//                for (int node : paths.get(colour))
+//                {
+//                    System.out.print(Game.idToCell[node]);
+//                    System.out.print(" <-- ");
+//                }
+//                System.out.println();
+
+                printGrid();
+                System.out.println("------------------");
+
                 current = paths.get(colour).getFirst();
                 prev = lastCells[colour];
                 next = (prev == -1)? -1 : getStraightOnNode(idToCell[current], idToCell[prev]);
@@ -141,6 +170,7 @@ public class Solver extends Game {
                     {
                         paths.get(colour).removeFirst();
                         lastCells[colour] = prev;
+                        return false;
                     }
                 }
 
@@ -148,7 +178,8 @@ public class Solver extends Game {
                 //If it's not the straightOn node nor filled, add.
                 for (int n : edges.get(current))
                 {
-                    if (colours[n] == Colour.NONE && n!=next)
+                    if (colours[n] == NO_COLOUR_VALUE && n!=next)
+//                        if (colours[n] == Colour.NONE && n!=next)
                     {
                         neighbours.add(n);
                     }
@@ -157,7 +188,8 @@ public class Solver extends Game {
                 //After all other neighbours have been added, if straightOn node exists and is unfilled, add (to front of stack)
                 if (next != -1)
                 {
-                    if (colours[next] == Colour.NONE)
+                    if (colours[next] == NO_COLOUR_VALUE)
+//                        if (colours[next] == Colour.NONE)
                     {
                         neighbours.add(next);
                     }
@@ -185,21 +217,110 @@ public class Solver extends Game {
 
                     //add to path.
                     paths.get(colour).addFirst(next);
-                    colours[next] = Colour.getEnumFromOrdinal(colour);
+//                    colours[next] = Colour.getEnumFromOrdinal(colour);
+                    colours[next] = colour;
                     lastCells[colour] = current;
 
-                    if (solve())
+                    if (findConnectedComponents(colour) && solve())
                     {
                         return true;
                     }
                     else
                     {
                         paths.get(colour).removeFirst();
-                        colours[next] = Colour.NONE;
+//                        colours[next] = Colour.NONE;
+                        colours[next] = NO_COLOUR_VALUE;
                         lastCells[colour] = prev;
                     }
                 }
                 return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean findConnectedComponents(int latestNodeColour) {
+        visited = new boolean[Game.size];
+        areColoursPossibleToConnect = new boolean[colourCount];
+
+        for (int node = 0; node < Game.size; node++) {
+            if (!visited[node] && colours[node] == NO_COLOUR_VALUE) {
+                componentGoals = new HashSet<>();
+                componentColours = new HashSet<>();
+                dfs(node);
+                if (!isComponentValid(latestNodeColour)) {
+                    return false;
+                }
+            }
+        }
+        return areComponentsValid(latestNodeColour);
+    }
+
+    public void dfs(int node)
+    {
+        for (int neighbour : Game.getEdges(node))
+        {
+            if (colours[neighbour] == NO_COLOUR_VALUE)
+            {
+                if (!visited[neighbour])
+                {
+                    visited[neighbour] = true;
+                    dfs(neighbour);
+                }
+            }
+            else
+            {
+                int goalColour = goalColours[neighbour];
+                if (goalColour != NO_COLOUR_VALUE)
+                {
+                    componentColours.add(goalColour);
+                    componentGoals.add(neighbour);
+                }
+            }
+        }
+    }
+
+    public boolean isComponentValid(int latestNodeColour)
+    {
+        if (componentColours.size() == 0)
+        {
+            return false;
+        }
+
+        boolean atLeastOneColourPossibleToConnect = false;
+
+        for (int colour : componentColours)
+        {
+            if (
+                    componentGoals.contains(startGoals[colour])
+                    &&
+                    componentGoals.contains(endGoals[colour])
+            )
+            {
+                atLeastOneColourPossibleToConnect = true;
+                areColoursPossibleToConnect[colour] = true;
+            }
+        }
+        if (atLeastOneColourPossibleToConnect)
+        {
+            return true;
+        }
+        else
+        {
+            return componentColours.contains(latestNodeColour);
+        }
+    }
+
+    public boolean areComponentsValid(int latestNodeColour)
+    {
+        for (int colour = 0; colour < colourCount; colour++)
+        {
+            if (!isColourDone(colour) && !areColoursPossibleToConnect[colour])
+            {
+                if (colour != latestNodeColour)
+                {
+                    return false;
+                }
             }
         }
         return true;
@@ -212,7 +333,17 @@ public class Solver extends Game {
         {
             for (int col = 0; col < width; col++)
             {
-                System.out.print(Colour.getBackgroundFromOrdinal(colours[node].ordinal()) + "   ");
+//                System.out.print(Colour.getBackgroundFromOrdinal(colours[node].ordinal()) + "   ");
+
+                if (colours[node] == NO_COLOUR_VALUE)
+                {
+                    System.out.print("\u001B[0m   ");
+                }
+                else
+                {
+                    System.out.print(Colour.getBackgroundFromOrdinal(colours[node]) + "   ");
+                }
+//                System.out.println("\u001B[0m");
                 node++;
             }
             System.out.println("\u001B[0m");
