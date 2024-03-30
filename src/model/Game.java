@@ -4,16 +4,27 @@ import java.util.*;
 
 public class Game {
 
+    protected static final int ADDENDS_LENGTH = 4;
+
     /**
      * Iterated over to find every potential neighbour of a node.
      * e.g. node = (5,5) ---> (5,5) + (-1,0) = (4,5) -> (5,5) + (1,0) = (6,5) -> ...
      */
-    protected static final Cell[] addendsToFindNeighbours = {
+    protected static final Cell[] ADDENDS_TO_FIND_NEIGHBOURS = {
             new Cell(1, 0), //right
             new Cell(-1, 0), //left
             new Cell(0, 1), //down
             new Cell(0, -1) //up
     };
+
+    protected static int[] startGoals;
+
+    protected static int[] endGoals;
+
+    /**
+     * An array where each element represents the colour held by a node.
+     */
+    protected static int[] colours;
 
     /**
      * The number of columns.
@@ -63,7 +74,7 @@ public class Game {
 //            System.out.println(idToCell[id]);
             Game.edges.add(new HashSet<>());
             cell = Game.idToCell[id];
-            for (Cell addendPair : addendsToFindNeighbours)
+            for (Cell addendPair : ADDENDS_TO_FIND_NEIGHBOURS)
             {
                 neighbourCol = cell.getCol() + addendPair.getCol();
                 neighbourRow = cell.getRow() + addendPair.getRow();
@@ -91,7 +102,7 @@ public class Game {
         int neighbourRow;
         Cell cell = idToCell[id];
 
-        for (Cell addendPair : addendsToFindNeighbours)
+        for (Cell addendPair : ADDENDS_TO_FIND_NEIGHBOURS)
         {
             neighbourCol = cell.getCol() + addendPair.getCol();
             neighbourRow = cell.getRow() + addendPair.getRow();
@@ -156,6 +167,11 @@ public class Game {
         System.out.println("-----------------------------------------");
         System.out.println("-----------------------------------------");
         System.out.println("-----------------------------------------");
+    }
+
+    public Game()
+    {
+
     }
 
     /**

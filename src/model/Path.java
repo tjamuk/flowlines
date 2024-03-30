@@ -37,6 +37,17 @@ public class Path {
         }
     }
 
+    public int getTurnCount()
+    {
+        int counter = 0;
+        for (boolean isTurn : listOfTurns)
+        {
+            if (isTurn) {
+                counter++;
+            }
+        }
+        return counter;
+    }
     public void remove()
     {
         set.remove(sequence.removeFirst());
