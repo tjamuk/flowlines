@@ -29,14 +29,14 @@ public class Solver extends Game {
      * An array where each element represents the colour held by a node.
      */
 //    Colour[] colours;
-    int[] colours;
+//    int[] colours;
 
     /**
      * An arraylist of goals
      * (not an array due to Pair<A> being a generic and generic array creation.)
      */
-    int[] startGoals;
-    int[] endGoals;
+//    int[] startGoals;
+//    int[] endGoals;
 
     static final int NO_COLOUR_VALUE = -1;
 
@@ -47,32 +47,49 @@ public class Solver extends Game {
      * @param height the number of rows in the grid.
 //     * @param goals An array list of start,end goal node pairs. Where each node is a column,row pair.
      */
-    public Solver(int width, int height, ArrayList<Cell> startGoals, ArrayList<Cell> endGoals)
+    public Solver(int width, int height, ArrayList<Cell> startGoalsList, ArrayList<Cell> endGoalsList)
     {
         super(width, height, false);
 
 //        colours = new Colour[width*height];
         colours = new int[width*height];
 
-        colourCount = startGoals.size();
+        colourCount = startGoalsList.size();
 
         Cell cell;
 
-        this.startGoals = new int[colourCount];
-        this.endGoals = new int[colourCount];
+        startGoals = new int[colourCount];
+        endGoals = new int[colourCount];
 
         for (int colour = 0; colour < colourCount; colour++)
         {
-            cell = startGoals.get(colour);
-            this.startGoals[colour] = Game.cellToId[cell.getCol()][cell.getRow()];
+            cell = startGoalsList.get(colour);
+            startGoals[colour] = Game.cellToId[cell.getCol()][cell.getRow()];
 
-            cell = endGoals.get(colour);
-            this.endGoals[colour] = Game.cellToId[cell.getCol()][cell.getRow()];
+            cell = endGoalsList.get(colour);
+            endGoals[colour] = Game.cellToId[cell.getCol()][cell.getRow()];
         }
 
 //        Arrays.fill(colours, Colour.NONE);
         Arrays.fill(colours, NO_COLOUR_VALUE);
 
+        addGoals();
+        initialisePaths();
+    }
+
+    public Solver()
+    {
+        colourCount = Game.startGoals.length;
+
+//        for (int i = 0; i < colourCount; i++)
+//        {
+//            System.out.print( idToCell[Game.startGoals[i]] );
+//            System.out.print( " --> ");
+//            System.out.println( idToCell[Game.endGoals[i]]);
+//        }
+
+        colours = new int[width*height];
+        Arrays.fill(colours, NO_COLOUR_VALUE);
         addGoals();
         initialisePaths();
     }
@@ -147,8 +164,8 @@ public class Solver extends Game {
 //                }
 //                System.out.println();
 
-                printGrid();
-                System.out.println("------------------");
+//                printGrid();
+//                System.out.println("------------------");
 
                 current = paths.get(colour).getFirst();
                 prev = lastCells[colour];
@@ -326,15 +343,39 @@ public class Solver extends Game {
         return true;
     }
 
+//    public void printGrid()
+//    {
+//        int node = 0;
+//        for (int row = 0; row < height; row++)
+//        {
+//            for (int col = 0; col < width; col++)
+//            {
+////                System.out.print(Colour.getBackgroundFromOrdinal(colours[node].ordinal()) + "   ");
+//
+//                if (colours[node] == NO_COLOUR_VALUE)
+//                {
+//                    System.out.print("\u001B[0m   ");
+//                }
+//                else
+//                {
+//                    System.out.print(Colour.getBackgroundFromOrdinal(colours[node]) + "   ");
+//                }
+////                System.out.println("\u001B[0m");
+//                node++;
+//            }
+//            System.out.println("\u001B[0m");
+//        }
+//    }
+
     public void printGrid()
     {
-        int node = 0;
+//        System.out.println(paths.size());
+        int node;
         for (int row = 0; row < height; row++)
         {
             for (int col = 0; col < width; col++)
             {
-//                System.out.print(Colour.getBackgroundFromOrdinal(colours[node].ordinal()) + "   ");
-
+                node = cellToId[col][row];
                 if (colours[node] == NO_COLOUR_VALUE)
                 {
                     System.out.print("\u001B[0m   ");
@@ -343,8 +384,6 @@ public class Solver extends Game {
                 {
                     System.out.print(Colour.getBackgroundFromOrdinal(colours[node]) + "   ");
                 }
-//                System.out.println("\u001B[0m");
-                node++;
             }
             System.out.println("\u001B[0m");
         }

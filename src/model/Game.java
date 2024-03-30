@@ -15,6 +15,15 @@ public class Game {
             new Cell(0, -1) //up
     };
 
+    protected static int[] startGoals;
+
+    protected static int[] endGoals;
+
+    /**
+     * An array where each element represents the colour held by a node.
+     */
+    protected static int[] colours;
+
     /**
      * The number of columns.
      */
@@ -156,6 +165,11 @@ public class Game {
         System.out.println("-----------------------------------------");
         System.out.println("-----------------------------------------");
         System.out.println("-----------------------------------------");
+    }
+
+    public Game()
+    {
+
     }
 
     /**

@@ -37,11 +37,6 @@ public class PuzzleGenerator extends Game
     int counter;
 
     /**
-     * An array where each element represents the colour held by a node.
-     */
-    int[] colours;
-
-    /**
      * Used for finding connected components where each element represents whether a node has been visited by the dfs.
      */
     int[] visited;
@@ -819,13 +814,41 @@ public class PuzzleGenerator extends Game
         return neighbours;
     }
 
-    public void outputGoals()
+    public float postGeneration()
     {
-//        Path path;
-//        while (!paths.isEmpty())
+        float turnCount = 0;
+        Path p;
+        final int pathCount = paths.size();
+        Game.startGoals = new int[pathCount];
+        Game.endGoals = new int[pathCount];
+
+        for (int i = 0; i < pathCount; i++)
+        {
+            p = paths.pop();
+            Game.startGoals[i] = p.peek();
+            Game.endGoals[i] = p.peekLast();
+
+            System.out.print( idToCell[Game.startGoals[i]] );
+            System.out.print( " --> ");
+            System.out.println( idToCell[Game.endGoals[i]]);
+
+            turnCount += p.getTurnCount();
+        }
+
+        return turnCount/pathCount;
+
+//        if (turnsPerPath <= 1.5)
 //        {
-//            path = paths.pop();
-//            System.out.print()
+//            return 1;
 //        }
+//        else if (turnsPerPath <= 2.5)
+//        {
+//            return 2;
+//        }
+//        else
+//        {
+//            return 3;
+//        }
+
     }
 }
