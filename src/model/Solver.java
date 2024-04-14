@@ -9,13 +9,18 @@ public class Solver extends Game {
      */
     int colourCount;
 
-    int componentCount;
-    int[] nodeToComponent;
-    ArrayList<Set<Integer>> componentGoals;
-    ArrayList<Set<Integer>> componentColours;
+    public int componentCount;
+    public int[] nodeToComponent;
+    public ArrayList<Set<Integer>> componentGoals;
+    public ArrayList<Integer> componentSizes;
+    public ArrayList<Set<Integer>> componentColours;
 
     boolean[] areColoursPossibleToConnect;
+    boolean[] nodeToIsBottleneck;
     int[] goalColours;
+    boolean[] visited;
+    Set<Integer> starts;
+    Set<Integer> ends;
 
     /**
      * The paths of the colours.
@@ -168,8 +173,8 @@ public class Solver extends Game {
 //                }
 //                System.out.println();
 
-//                printGrid();
-//                System.out.println("------------------");
+                printGrid();
+                System.out.println("------------------");
 
                 current = paths.get(colour).getFirst();
                 prev = lastCells[colour];
@@ -241,8 +246,9 @@ public class Solver extends Game {
 //                    colours[next] = Colour.getEnumFromOrdinal(colour);
                     colours[next] = colour;
                     lastCells[colour] = current;
+                    System.out.println(idToCell[next]);
 
-                    if (findConnectedComponents(colour) && solve())
+                    if (findConnectedComponents(colour) && !checkForBottleneck(next) && solve())
                     {
                         return true;
                     }
@@ -268,12 +274,13 @@ public class Solver extends Game {
         componentCount = 0;
         componentGoals = new ArrayList<>();
         componentColours = new ArrayList<>();
+        componentSizes = new ArrayList<>();
 
         for (int node = 0; node < Game.size; node++) {
             if (nodeToComponent[node] == NO_COLOUR_VALUE && colours[node] == NO_COLOUR_VALUE) {
-                System.out.println(node);
                 componentGoals.add(new HashSet<>());
                 componentColours.add(new HashSet<>());
+                componentSizes.add(0);
                 dfs(node);
                 if (!isComponentValid(latestNodeColour, componentCount)) {
                     return false;
@@ -286,22 +293,15 @@ public class Solver extends Game {
 
     public void dfs(int node)
     {
-        System.out.println(idToCell[node]);
+        nodeToComponent[node] = componentCount;
+        componentSizes.set(componentCount, componentSizes.get(componentCount)+1);
+//        System.out.println(idToCell[node] + " in component " + componentCount + ". Size now = " + componentSizes.get(componentCount));
         for (int neighbour : Game.getEdges(node))
         {
-            if (idToCell[neighbour].getCol() == 3 && idToCell[neighbour].getRow() == 2)
-            {
-                System.out.println(componentCount);
-            }
             if (colours[neighbour] == NO_COLOUR_VALUE)
             {
                 if (nodeToComponent[neighbour] == NO_COLOUR_VALUE)
                 {
-                    if (idToCell[neighbour].getCol() == 3 && idToCell[neighbour].getRow() == 2)
-                    {
-                        System.out.println(componentCount);
-                    }
-                    nodeToComponent[neighbour] = componentCount;
                     dfs(neighbour);
                 }
             }
@@ -363,111 +363,357 @@ public class Solver extends Game {
         return true;
     }
 
-    public void findBottlenecks(int node)
+    public boolean aFunc(int x, int y)
     {
-        int xNode = idToCell[node].getCol(), yNode = idToCell[node].getRow();
-        int xNeighbour; int yNeighbour; int neighbour;
+        return checkForBottleneck(cellToId[x][y]);
+    }
 
-        for (int direction = 0; direction < ADDENDS_LENGTH; direction++)
+    //int x, int y, int component
+    public boolean checkForBottleneck(int node)
+    {
+//        for (int i = 0; i < componentCount; i++)
+//        {
+//            System.out.print(i + " = ");
+//            for (int goal : componentGoals.get(i))
+//            {
+//                System.out.print(idToCell[goal] + ", ");
+//            }
+//            System.out.println();
+//        }
+
+        int component = -999;
+        for (int neighbour : Game.getEdges(node))
         {
-            xNeighbour = xNode + ADDENDS_TO_FIND_NEIGHBOURS[direction].getCol();
-            yNeighbour = yNode + ADDENDS_TO_FIND_NEIGHBOURS[direction].getRow();
-
-            if (isNodeInGrid(xNeighbour, yNeighbour) && colours[cellToId[xNeighbour][yNeighbour]] == NO_COLOUR_VALUE)
+            if (nodeToComponent[neighbour] != -1)
             {
-                neighbour = cellToId[xNeighbour][yNeighbour];
-                System.out.println(idToCell[neighbour]); System.out.println(nodeToComponent[neighbour]); System.out.println();
-                isBottleneck(
-                        neighbour,
-                        componentGoals.get(nodeToComponent[neighbour]).size(),
-                        direction,
-                        0
-                );
+                if (component == -999)
+                {
+                    component = nodeToComponent[neighbour];
+                }
+                else if (component != nodeToComponent[neighbour])
+                {
+                    System.out.println("not bottleneck");
+                    return false;
+                }
             }
         }
+        if (component == -999) {System.out.println("not bottleneck");return false;}
+
+        int count = 0;
+        boolean isNodeOnlyInOneComponent;
+        for (int colour = 0; colour < colourCount; colour++)
+        {
+            if (
+                    !isColourDone(colour) &&
+                    componentGoals.get(component).contains(startGoals[colour]) &&
+                    componentGoals.get(component).contains(endGoals[colour])
+            )
+            {
+                isNodeOnlyInOneComponent = true;
+                for (int neighbour : Game.getEdges(paths.get(colour).getFirst()))
+                {
+                    if (!(nodeToComponent[neighbour] == component || nodeToComponent[neighbour] == -1))
+                    {
+                        isNodeOnlyInOneComponent = false;
+                        break;
+                    }
+                }
+                if (isNodeOnlyInOneComponent)
+                {
+                    count++;
+                }
+            }
+        }
+        if (count > 1)
+        {
+            return isBottleneck(node, component);
+        }
+        else
+        {
+            System.out.println("not bottleneck");
+            return false;
+        }
     }
+
+    public boolean isBottleneck(int node, int component)
+    {
+        //smaller component must have 1 goal.
+        int count;
+        boolean a = false;
+        for (int neighbour : Game.getEdges(node)) //for every neighbour of node
+        {
+            if (colours[neighbour] == NO_COLOUR_VALUE)
+            {
+                visited = new boolean[size];
+                visited[neighbour] = true;
+                for (int start : Game.getEdges(neighbour))
+                {
+                    if (colours[start] == NO_COLOUR_VALUE)
+                    {
+                        starts = new HashSet<>(); ends = new HashSet<>();
+                        System.out.println("\n\n\nSearching from " + idToCell[start]);
+                        count = simpleDfs(start);
+//                        System.out.println(count + " != " + (componentSizes.get(component)-1));
+                        if (count != componentSizes.get(component)-1)
+                        {
+                            System.out.println("bottleneck");
+                            System.out.println(starts);
+                            System.out.println(ends);
+                            return isNewComponentGood(component); //true
+                        }
+                        break;
+                    }
+                }
+
+            }
+        }
+        System.out.println("not bottleneck");
+        return false;
+    }
+
+    public boolean isNewComponentGood(int originalComponent)
+    {
+        boolean isNodeOnlyInOneComponent;
+        int count = 0;
+        int component;
+
+        System.out.print("Start = ");
+        for (int startGoalColour : starts)
+        {
+            System.out.print(idToCell[paths.get(startGoalColour).getFirst()]);
+            System.out.print(", ");
+        }
+        System.out.print(" ||| End  = ");
+        for (int endGoal : ends)
+        {
+            System.out.print(idToCell[endGoal]);
+            System.out.print(", ");
+        }
+        System.out.println();
+
+        for (int startGoalColour : starts)
+        {
+            isNodeOnlyInOneComponent = true;
+            component = -999;
+            for (int neighbour : Game.getEdges(paths.get(startGoalColour).getFirst()))
+            {
+                if (nodeToComponent[neighbour] != -1)
+                {
+                    if (component == -999)
+                    {
+                        component = nodeToComponent[neighbour];
+                    }
+                    else if (component != nodeToComponent[neighbour])
+                    {
+                        isNodeOnlyInOneComponent = false;
+                    }
+                }
+            }
+
+            if (component != -999 && isNodeOnlyInOneComponent)
+            {
+                if (componentGoals.get(originalComponent).contains(endGoals[startGoalColour])) //paths.get(startGoalColour).getFirst()
+                {
+                    if (!ends.remove(startGoalColour))
+                    {
+                        count++;
+                        System.out.println("count = " + count + ". | because for start " + idToCell[paths.get(startGoalColour).getFirst()] + ", end " + idToCell[endGoals[startGoalColour]] + " is not in this component");
+                    }
+                }
+            }
+        }
+        for (int endGoalColour : ends)
+        {
+            isNodeOnlyInOneComponent = true;
+            component = -999;
+            for (int neighbour : Game.getEdges(endGoals[endGoalColour]))
+            {
+                if (nodeToComponent[neighbour] != -1)
+                {
+                    if (component == -999)
+                    {
+                        component = nodeToComponent[neighbour];
+                    }
+                    else if (component != nodeToComponent[neighbour])
+                    {
+                        isNodeOnlyInOneComponent = false;
+                    }
+                }
+            }
+
+            if (component != -999 && isNodeOnlyInOneComponent)
+            {
+                if (componentGoals.get(originalComponent).contains(paths.get(endGoalColour).getFirst()))
+                {
+                    if (!starts.remove(endGoalColour))
+                    {
+                        count++;
+                        System.out.println("count = " + count + ". | because for end " + idToCell[endGoals[endGoalColour]] + ", start " + idToCell[paths.get(endGoalColour).getFirst()] + " is not in this component");
+                    }
+                }
+            }
+        }
+
+        return (count>1);
+    }
+
+    public int simpleDfs(int node)
+    {
+        visited[node] = true;
+        int count = 1;
+        for (int neighbour : Game.getEdges(node))
+        {
+            if (colours[neighbour] == NO_COLOUR_VALUE)
+            {
+                if (!visited[neighbour])
+                {
+                    count += simpleDfs(neighbour);
+                }
+            }
+            else
+            {
+                int colour = colours[neighbour];
+                if (colour != 999)
+                {
+
+                    if (neighbour == paths.get(colour).getFirst())
+                    {
+                        starts.add(colour);
+                        System.out.println("adding start " + idToCell[neighbour]);
+                        System.out.println(starts);
+                    }
+                    else if (neighbour == endGoals[colour])
+                    {
+                        ends.add(colour);
+                        System.out.println("adding end " + idToCell[neighbour]);
+                        System.out.println(ends);
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+//    public boolean findBottlenecks(int node, ArrayList<Integer> addedBottlenecks) //node = most recently added node.
+//    {
+//        int xNode = idToCell[node].getCol(), yNode = idToCell[node].getRow();
+//        int xNeighbour; int yNeighbour; int neighbour;
+//
+//        for (int direction = 0; direction < ADDENDS_LENGTH; direction++) //in every direction (for every neighbour), checks for bottlenecks.
+//        {
+//            xNeighbour = xNode + ADDENDS_TO_FIND_NEIGHBOURS[direction].getCol();
+//            yNeighbour = yNode + ADDENDS_TO_FIND_NEIGHBOURS[direction].getRow();
+//
+//            if (isNodeInGrid(xNeighbour, yNeighbour))
+//            {
+//                neighbour = cellToId[xNeighbour][yNeighbour];
+//                System.out.println(idToCell[neighbour]); System.out.println(nodeToComponent[neighbour]); System.out.println();
+//                isBottleneck(
+//                        neighbour,
+//                        componentGoals.get(nodeToComponent[neighbour]).size(),
+//                        direction,
+//                        0
+//                );
+//            }
+//        }
+//
+//        if (nodeToIsBottleneck)
+//    }
 
     public int getComponent(int node)
     {
         return 0;
     }
 
-    public boolean isBottleneck(int cell, int goalCount, int direction, int current)
-    {
-        int xCell = idToCell[cell].getCol();
-        int yCell = idToCell[cell].getRow();
-        int x1; int y1; int x2; int y2; int direction1; int direction2; int other; int xOther; int yOther;
-
-        Set<Integer> b = new HashSet<>();
-
-        if (direction < 2)
-        {
-            direction1 = 2;
-            direction2 = 3;
-            other = (direction==0)? 1 : 0;
-        }
-        else
-        {
-            direction1 = 0;
-            direction2 = 1;
-            other = (direction==2)? 3 : 2;
-        }
-
-        while (true)
-        {
-            x1 = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction1].getCol();
-            y1 = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction1].getRow();
-
-            x2 = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction2].getCol();
-            y2 = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction2].getRow();
-
-            if (
-                    !isNodeInGrid(x1, y1) ||
-                            !isNodeInGrid(x2, y2) ||
-                            colours[cellToId[x1][y1]] != NO_COLOUR_VALUE ||
-                            colours[cellToId[x2][y2]] != NO_COLOUR_VALUE
-            )
-            {
-                return false;
-            }
-
-            xOther = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction].getCol();
-            yOther = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction].getRow();
-
-            if (!isNodeInGrid(xOther, yOther) || colours[cellToId[xOther][yOther]] != NO_COLOUR_VALUE)
-            {
-                b.add(cell);
-                break;
-            }
-            else if (current != goalCount)
-            {
-                b.add(cell);
-                //continue
-                xCell = xOther;
-                yCell = yOther;
-                cell = cellToId[xOther][yOther];
-                current++;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        while (bottlenecks.size() < b.size() + 1)
-        {
-            bottlenecks.add(new HashSet<>());
-        }
-
-        bottlenecks.get(b.size()).addAll(b);
-        return true;
-    }
+//    public boolean isBottleneck(int cell, int goalCount, int direction, int current)
+//    {
+//        int xCell = idToCell[cell].getCol();
+//        int yCell = idToCell[cell].getRow();
+//        int x1; int y1; int x2; int y2; int direction1; int direction2; int xOther; int yOther; //int other
+//
+//        boolean isBottleneck = false;
+//
+//        Set<Integer> b = new HashSet<>();
+//
+//        if (direction < 2)
+//        {
+//            direction1 = 2;
+//            direction2 = 3;
+////            other = (direction==0)? 1 : 0;
+//        }
+//        else
+//        {
+//            direction1 = 0;
+//            direction2 = 1;
+////            other = (direction==2)? 3 : 2;
+//        }
+//
+//        while (true)
+//        {
+//            x1 = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction1].getCol();
+//            y1 = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction1].getRow();
+//
+//            x2 = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction2].getCol();
+//            y2 = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction2].getRow();
+//
+//            if (
+//                    !isNodeInGrid(x1, y1) ||
+//                            !isNodeInGrid(x2, y2) ||
+//                            colours[cellToId[x1][y1]] != NO_COLOUR_VALUE ||
+//                            colours[cellToId[x2][y2]] != NO_COLOUR_VALUE
+//            )
+//            {
+//                break;
+//            }
+//
+//            xOther = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction].getCol();
+//            yOther = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction].getRow();
+//
+//            if (!isNodeInGrid(xOther, yOther) || colours[cellToId[xOther][yOther]] != NO_COLOUR_VALUE)
+//            {
+//                b.add(cell);
+//                isBottleneck = true;
+//                break;
+//            }
+//            else if (current != goalCount)
+//            {
+//                b.add(cell);
+//                //continue
+//                xCell = xOther;
+//                yCell = yOther;
+//                cell = cellToId[xOther][yOther];
+//                current++;
+//            }
+//            else
+//            {
+//                break;
+//            }
+//        }
+//
+//        if (isBottleneck)
+//        {
+//            while (bottlenecks.size() < b.size() + 1)
+//            {
+//                bottlenecks.add(new HashSet<>());
+//            }
+//
+//            bottlenecks.get(b.size()).addAll(b);
+//            return true;
+//        }
+//        else
+//        {
+//            return false;
+//        }
+//
+//    }
 
     public void addPath(Cell[] path)
     {
         int node; int x; int y;
 
-        bottlenecks = new ArrayList<>();
+//        bottlenecks = new ArrayList<>();
+//        nodeToBottleneckSize = new int[size];
+//        Arrays.fill(nodeToBottleneckSize, NO_COLOUR_VALUE);
 
         for (Cell cell : path)
         {
@@ -475,53 +721,23 @@ public class Solver extends Game {
             y = cell.getRow();
             node = cellToId[x][y];
             colours[node] = 999;
-            findConnectedComponents(node);
-            findBottlenecks(node);
+//            findConnectedComponents(node);
+//            findBottlenecks(node, new ArrayList<>());
         }
 
-//        x = path[path.length-1].getCol();
-//        y = path[path.length-1].getRow();
-//        node = cellToId[x][y];
-//        System.out.println(idToCell[node]);
-
-        for (int i = 1; i < bottlenecks.size(); i++)
-        {
-            System.out.print("bottlenecks of size " + i + " ==> ");
-            for (Integer bottleneck : bottlenecks.get(i))
-            {
-                System.out.print(idToCell[bottleneck] + ", ");
-            }
-            System.out.println();
-        }
-    }
-
-//    public void printGrid()
-//    {
-//        int node = 0;
-//        for (int row = 0; row < height; row++)
+//        for (int i = 1; i < bottlenecks.size(); i++)
 //        {
-//            for (int col = 0; col < width; col++)
+//            System.out.print("bottlenecks of size " + i + " ==> ");
+//            for (Integer bottleneck : bottlenecks.get(i))
 //            {
-////                System.out.print(Colour.getBackgroundFromOrdinal(colours[node].ordinal()) + "   ");
-//
-//                if (colours[node] == NO_COLOUR_VALUE)
-//                {
-//                    System.out.print("\u001B[0m   ");
-//                }
-//                else
-//                {
-//                    System.out.print(Colour.getBackgroundFromOrdinal(colours[node]) + "   ");
-//                }
-////                System.out.println("\u001B[0m");
-//                node++;
+//                System.out.print(idToCell[bottleneck] + ", ");
 //            }
-//            System.out.println("\u001B[0m");
+//            System.out.println();
 //        }
-//    }
+    }
 
     public void printGrid()
     {
-//        System.out.println(paths.size());
         int node;
         for (int row = 0; row < height; row++)
         {
@@ -536,6 +752,20 @@ public class Solver extends Game {
                 {
                     System.out.print(Colour.getBackgroundFromOrdinal(colours[node]) + "   ");
                 }
+            }
+            System.out.println("\u001B[0m");
+        }
+    }
+
+    public void printComponents()
+    {
+        int node;
+        for (int row = 0; row < height; row++)
+        {
+            for (int col = 0; col < width; col++)
+            {
+                node = cellToId[col][row];
+                System.out.println(idToCell[node] + " = " + nodeToComponent[node]);
             }
             System.out.println("\u001B[0m");
         }
