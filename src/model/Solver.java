@@ -16,11 +16,12 @@ public class Solver extends Game {
     public ArrayList<Set<Integer>> componentColours;
 
     boolean[] areColoursPossibleToConnect;
-    boolean[] nodeToIsBottleneck;
     int[] goalColours;
     boolean[] visited;
-    Set<Integer> starts;
-    Set<Integer> ends;
+    ArrayList<Set<Integer>> starts;
+    ArrayList<Set<Integer>> ends;
+    ArrayList<Integer> sizes;
+    int newComponentsSize;
 
     /**
      * The paths of the colours.
@@ -45,7 +46,7 @@ public class Solver extends Game {
 //    int[] startGoals;
 //    int[] endGoals;
 
-    static final int NO_COLOUR_VALUE = -1;
+    static final int NULL_INT_VALUE = -1;
 
     static ArrayList<Set<Integer>> bottlenecks;
 
@@ -60,17 +61,16 @@ public class Solver extends Game {
     {
         super(width, height, false);
 
-//        colours = new Colour[width*height];
         colours = new int[width*height];
 
-        colourCount = startGoalsList.size();
+        colourCount = startGoalsList.size(); //the number of coloured pairs of goals.
 
         Cell cell;
 
         startGoals = new int[colourCount];
         endGoals = new int[colourCount];
 
-        for (int colour = 0; colour < colourCount; colour++)
+        for (int colour = 0; colour < colourCount; colour++) //setups the start and end goals for all colours.
         {
             cell = startGoalsList.get(colour);
             startGoals[colour] = Game.cellToId[cell.getCol()][cell.getRow()];
@@ -79,40 +79,32 @@ public class Solver extends Game {
             endGoals[colour] = Game.cellToId[cell.getCol()][cell.getRow()];
         }
 
-//        Arrays.fill(colours, Colour.NONE);
-        Arrays.fill(colours, NO_COLOUR_VALUE);
+        Arrays.fill(colours, NULL_INT_VALUE); //all cells in the grid are unfilled.
 
-        addGoals();
-        initialisePaths();
+        addGoalsToGrid(); //adds goals to the grid (fills in the cells with the colours of the goals)
+        initialisePaths(); //adds the start goal to the paths.
     }
 
+    /**
+     * A constructor for when there are already goals, width and height set.
+     */
     public Solver()
     {
         colourCount = Game.startGoals.length;
 
-//        for (int i = 0; i < colourCount; i++)
-//        {
-//            System.out.print( idToCell[Game.startGoals[i]] );
-//            System.out.print( " --> ");
-//            System.out.println( idToCell[Game.endGoals[i]]);
-//        }
-
         colours = new int[width*height];
-        Arrays.fill(colours, NO_COLOUR_VALUE);
-        addGoals();
+        Arrays.fill(colours, NULL_INT_VALUE);
+        addGoalsToGrid();
         initialisePaths();
     }
 
     /**
-     * Adds the coloured goals (found in ArrayList<Pair<Pair<Integer>>> goals) to model.Colour[][] grid.
+     * Adds the coloured goals (found in int[] startGoals, endGoals) to Colour[] colours.
      */
-    private void addGoals()
+    private void addGoalsToGrid()
     {
         for (int goalPairIndex = 0; goalPairIndex < colourCount; goalPairIndex++) //for every pair of goals...
         {
-//            colours[startGoals[goalPairIndex]] = Colour.getEnumFromOrdinal(goalPairIndex);
-//            colours[endGoals[goalPairIndex]] = Colour.getEnumFromOrdinal(goalPairIndex);
-
             colours[startGoals[goalPairIndex]] = goalPairIndex;
             colours[endGoals[goalPairIndex]] = goalPairIndex;
         }
@@ -120,33 +112,30 @@ public class Solver extends Game {
     }
 
     /**
-     * Adds the coloured goals (found in ArrayList<Pair<Pair<Integer>>> goals) to model.Colour[][] grid.
+     * Adds the start goals to the paths.
+     *
+     * For each colour's path, add the colour's start goal to it.
      */
     private void initialisePaths()
     {
-        lastCells = new int[colourCount];
+        lastCells = new int[colourCount]; //basically
         Arrays.fill(lastCells, -1);
 
         paths = new ArrayList<>();
 
-        for (int index = 0; index < colourCount; index++)
+        for (int index = 0; index < colourCount; index++) //for each colour's path, add the colour's start goal to it.
         {
-//            lastNodes[index] = startGoals.get(index);
-            int finalIndex = index;
-            paths.add(new LinkedList<>() {{
-                addFirst(startGoals[finalIndex]);
-            }});
+            paths.add(new LinkedList<>());
+            paths.get(index).addFirst(startGoals[index]);
         }
     }
 
     /**
      * Returns whether there is a path connecting a colour's start and end goals.
      */
-    private boolean isColourDone(int colour)
+    private boolean isColourNotDone(int colour)
     {
-//        System.out.println(colour);
-//        System.out.println(endGoals[colour]);
-        return paths.get(colour).getFirst().equals(endGoals[colour]);
+        return !paths.get(colour).getFirst().equals(endGoals[colour]);
     }
 
     /**
@@ -155,98 +144,47 @@ public class Solver extends Game {
      */
     public boolean solve()
     {
-        int current;
-        int prev;
-        int next;
+        int current; //the head/front of the most recent path.
+        int prev; //the 2nd front of the most recent path.
+        int next; //the next node to add to the path.
         Stack<Integer> neighbours;
 
-        for (int colour = 0; colour < colourCount; colour++)
+        for (int colour = 0; colour < colourCount; colour++) //for every colour, check if it's path is done.
         {
-            if (!isColourDone(colour))
+            if (isColourNotDone(colour)) //if colour's path not completed.
             {
-//                System.out.print(colour);
-//                System.out.print("'s path = ");
-//                for (int node : paths.get(colour))
-//                {
-//                    System.out.print(Game.idToCell[node]);
-//                    System.out.print(" <-- ");
-//                }
-//                System.out.println();
 
                 printGrid();
                 System.out.println("------------------");
 
-                current = paths.get(colour).getFirst();
-                prev = lastCells[colour];
-                next = (prev == -1)? -1 : getStraightOnNode(idToCell[current], idToCell[prev]);
+                current = paths.get(colour).getFirst(); //1st front of colour's path.
+                prev = getInPath(colour, 1); //2nd front of colour's #####path.lastCells[colour]####
+                next = (prev == NULL_INT_VALUE)? NULL_INT_VALUE : getStraightOnNode(idToCell[current], idToCell[prev]); //if there is a previous front in path, assign 'next' to the straight on node. ELSE set to null.
                 neighbours = new Stack<>();
 
-//                System.out.println(current);
-
-                //if the front of the path is next to the endGoal, can move onto the next colour.
+                //if the new front of the path is next to the endGoal, can move onto the next colour.
                 if (Game.edges.get(current).contains(endGoals[colour]))
                 {
-                    paths.get(colour).addFirst(endGoals[colour]);
-                    lastCells[colour] = current;
-                    if (solve())
+                    paths.get(colour).addFirst(endGoals[colour]); //add end goal onto path (completing it)
+                    if (solve()) //move onto next colour. IF solution from this point -> return true. ELSE (no solution), remove end goal and return false (backtrack)
                     {
                         return true;
                     }
                     else
                     {
                         paths.get(colour).removeFirst();
-                        lastCells[colour] = prev;
                         return false;
                     }
                 }
 
-                //For every neighbour of the front of the path...
-                //If it's not the straightOn node nor filled, add.
-                for (int n : edges.get(current))
-                {
-                    if (colours[n] == NO_COLOUR_VALUE && n!=next)
-//                        if (colours[n] == Colour.NONE && n!=next)
-                    {
-                        neighbours.add(n);
-                    }
-                }
-
-                //After all other neighbours have been added, if straightOn node exists and is unfilled, add (to front of stack)
-                if (next != -1)
-                {
-                    if (colours[next] == NO_COLOUR_VALUE)
-//                        if (colours[next] == Colour.NONE)
-                    {
-                        neighbours.add(next);
-                    }
-                }
-
-                int third = -1; //the third most recent in the path.
-
-                if (paths.get(colour).size() > 2)
-                {
-                    third = paths.get(colour).get(2);
-                }
+                getVisitOrder(neighbours, current, next, colour); //get an ordered stack of neighbours to visit.
 
                 while (!neighbours.isEmpty()) //add every neighbour.
                 {
                     next = neighbours.pop();
 
-                    if (third != -1) //check to see if redundant node.
-                    {
-                        if (edges.get(third).contains(next))
-                        {
-                            third = -1;
-                            continue;
-                        }
-                    }
-
-                    //add to path.
-                    paths.get(colour).addFirst(next);
-//                    colours[next] = Colour.getEnumFromOrdinal(colour);
+                    paths.get(colour).addFirst(next); //add to path.
                     colours[next] = colour;
-                    lastCells[colour] = current;
-                    System.out.println(idToCell[next]);
 
                     if (findConnectedComponents(colour) && !checkForBottleneck(next) && solve())
                     {
@@ -255,9 +193,7 @@ public class Solver extends Game {
                     else
                     {
                         paths.get(colour).removeFirst();
-//                        colours[next] = Colour.NONE;
-                        colours[next] = NO_COLOUR_VALUE;
-                        lastCells[colour] = prev;
+                        colours[next] = NULL_INT_VALUE;
                     }
                 }
                 return false;
@@ -266,10 +202,53 @@ public class Solver extends Game {
         return true;
     }
 
+    /**
+     * Gets the order in which to visit the neighbours of the front of the current.
+     * @param neighbours - the visit order stack.
+     * @param frontNodeOfPath - the front/1st of the current path.
+     * @param straightOnNode - the next node when going straight from front of path.
+     * @param colour - the current colour path being worked on.
+     */
+    public void getVisitOrder(Stack<Integer> neighbours, int frontNodeOfPath, int straightOnNode, int colour)
+    {
+        int third = getInPath(colour, 2);
+
+        //For every neighbour of the front of the path...
+        for (int node : edges.get(frontNodeOfPath))
+        {
+            if (colours[node] == NULL_INT_VALUE && node != straightOnNode) //If the node is not filled NOR the straightOn node -> add.
+            {
+                if (third != NULL_INT_VALUE) //check to see if redundant node.
+                {
+                    if (edges.get(third).contains(node)) //check to see that node is redundant.
+                    {
+                        third = NULL_INT_VALUE;
+                        continue;
+                    }
+                }
+                neighbours.add(node);
+            }
+        }
+
+        //After all other neighbours have been added, if straightOn node exists and is unfilled, add (to front of stack)
+        if (straightOnNode != NULL_INT_VALUE)
+        {
+            if (colours[straightOnNode] == NULL_INT_VALUE)
+            {
+                neighbours.add(straightOnNode);
+            }
+        }
+    }
+
+    /**
+     *
+     * @param latestNodeColour - the colour of the node most recently added.
+     * @return
+     */
     public boolean findConnectedComponents(int latestNodeColour) {
 
         nodeToComponent = new int[Game.size];
-        Arrays.fill(nodeToComponent, NO_COLOUR_VALUE);
+        Arrays.fill(nodeToComponent, NULL_INT_VALUE);
         areColoursPossibleToConnect = new boolean[colourCount];
         componentCount = 0;
         componentGoals = new ArrayList<>();
@@ -277,7 +256,7 @@ public class Solver extends Game {
         componentSizes = new ArrayList<>();
 
         for (int node = 0; node < Game.size; node++) {
-            if (nodeToComponent[node] == NO_COLOUR_VALUE && colours[node] == NO_COLOUR_VALUE) {
+            if (nodeToComponent[node] == NULL_INT_VALUE && colours[node] == NULL_INT_VALUE) {
                 componentGoals.add(new HashSet<>());
                 componentColours.add(new HashSet<>());
                 componentSizes.add(0);
@@ -298,9 +277,9 @@ public class Solver extends Game {
 //        System.out.println(idToCell[node] + " in component " + componentCount + ". Size now = " + componentSizes.get(componentCount));
         for (int neighbour : Game.getEdges(node))
         {
-            if (colours[neighbour] == NO_COLOUR_VALUE)
+            if (colours[neighbour] == NULL_INT_VALUE)
             {
-                if (nodeToComponent[neighbour] == NO_COLOUR_VALUE)
+                if (nodeToComponent[neighbour] == NULL_INT_VALUE)
                 {
                     dfs(neighbour);
                 }
@@ -308,7 +287,7 @@ public class Solver extends Game {
             else
             {
                 int goalColour = goalColours[neighbour];
-                if (goalColour != NO_COLOUR_VALUE)
+                if (goalColour != NULL_INT_VALUE)
                 {
                     componentColours.get(componentCount).add(goalColour);
                     componentGoals.get(componentCount).add(neighbour);
@@ -352,7 +331,7 @@ public class Solver extends Game {
     {
         for (int colour = 0; colour < colourCount; colour++)
         {
-            if (!isColourDone(colour) && !areColoursPossibleToConnect[colour])
+            if (isColourNotDone(colour) && !areColoursPossibleToConnect[colour])
             {
                 if (colour != latestNodeColour)
                 {
@@ -404,7 +383,7 @@ public class Solver extends Game {
         for (int colour = 0; colour < colourCount; colour++)
         {
             if (
-                    !isColourDone(colour) &&
+                    isColourNotDone(colour) &&
                     componentGoals.get(component).contains(startGoals[colour]) &&
                     componentGoals.get(component).contains(endGoals[colour])
             )
@@ -438,28 +417,39 @@ public class Solver extends Game {
     public boolean isBottleneck(int node, int component)
     {
         //smaller component must have 1 goal.
+        starts = new ArrayList<>();
+        ends = new ArrayList<>();
+        sizes = new ArrayList<>();
         int count;
-        boolean a = false;
-        for (int neighbour : Game.getEdges(node)) //for every neighbour of node
+        newComponentsSize = 0;
+        for (int neighbour : Game.getEdges(node)) //for every neighbour (possible bottleneck) of newly node
         {
-            if (colours[neighbour] == NO_COLOUR_VALUE)
+            if (colours[neighbour] == NULL_INT_VALUE)
             {
                 visited = new boolean[size];
                 visited[neighbour] = true;
                 for (int start : Game.getEdges(neighbour))
                 {
-                    if (colours[start] == NO_COLOUR_VALUE)
+                    if (colours[start] == NULL_INT_VALUE)
                     {
-                        starts = new HashSet<>(); ends = new HashSet<>();
-                        System.out.println("\n\n\nSearching from " + idToCell[start]);
+                        starts.add(new HashSet<>());
+                        ends.add(new HashSet<>());
+//                        System.out.println("\n\n\nSearching from " + idToCell[start]);
                         count = simpleDfs(start);
 //                        System.out.println(count + " != " + (componentSizes.get(component)-1));
                         if (count != componentSizes.get(component)-1)
                         {
                             System.out.println("bottleneck");
-                            System.out.println(starts);
-                            System.out.println(ends);
-                            return isNewComponentGood(component); //true
+//                            System.out.println(starts);
+//                            System.out.println(ends);
+                            sizes.add(count);
+                            newComponentsSize++;
+                            return isNewComponentGood(component, neighbour, start); //true
+                        }
+                        else
+                        {
+                            starts.remove(newComponentsSize);
+                            ends.remove(newComponentsSize);
                         }
                         break;
                     }
@@ -471,27 +461,48 @@ public class Solver extends Game {
         return false;
     }
 
-    public boolean isNewComponentGood(int originalComponent)
+    public boolean isNewComponentGood(int originalComponent, int bottleneckNode, int startNode)
     {
+        int chosenComponent = 0;
+        int chosenComponentSize = starts.get(0).size() + ends.get(0).size();
+        int temp;
+        for (int node : Game.getEdges(bottleneckNode))
+        {
+            if (colours[node] == NULL_INT_VALUE && node != startNode)
+            {
+                starts.add(new HashSet<>());
+                ends.add(new HashSet<>());
+                sizes.add(simpleDfs(node));
+                temp = starts.get(newComponentsSize).size() + ends.get(newComponentsSize).size();
+                if (temp < chosenComponentSize)
+                {
+                    chosenComponentSize = temp;
+                    chosenComponent = starts.size()-1;
+                }
+                newComponentsSize++;
+            }
+        }
+
+        boolean good;
         boolean isNodeOnlyInOneComponent;
         int count = 0;
         int component;
+//
+//        System.out.print("Start = ");
+//        for (int startGoalColour : starts.get(chosenComponent))
+//        {
+//            System.out.print(idToCell[paths.get(startGoalColour).getFirst()]);
+//            System.out.print(", ");
+//        }
+//        System.out.print(" ||| End  = ");
+//        for (int endGoal : ends.get(chosenComponent))
+//        {
+//            System.out.print(idToCell[endGoal]);
+//            System.out.print(", ");
+//        }
+//        System.out.println();
 
-        System.out.print("Start = ");
-        for (int startGoalColour : starts)
-        {
-            System.out.print(idToCell[paths.get(startGoalColour).getFirst()]);
-            System.out.print(", ");
-        }
-        System.out.print(" ||| End  = ");
-        for (int endGoal : ends)
-        {
-            System.out.print(idToCell[endGoal]);
-            System.out.print(", ");
-        }
-        System.out.println();
-
-        for (int startGoalColour : starts)
+        for (int startGoalColour : starts.get(chosenComponent))
         {
             isNodeOnlyInOneComponent = true;
             component = -999;
@@ -514,15 +525,28 @@ public class Solver extends Game {
             {
                 if (componentGoals.get(originalComponent).contains(endGoals[startGoalColour])) //paths.get(startGoalColour).getFirst()
                 {
-                    if (!ends.remove(startGoalColour))
+                    if (!ends.get(chosenComponent).remove(startGoalColour))
                     {
-                        count++;
-                        System.out.println("count = " + count + ". | because for start " + idToCell[paths.get(startGoalColour).getFirst()] + ", end " + idToCell[endGoals[startGoalColour]] + " is not in this component");
+                        good = true;
+                        for (int i = 0; i < starts.size(); i++)
+                        {
+                            if (i != chosenComponent && starts.get(i).contains(startGoalColour))
+                            {
+                                good = false;
+                                break;
+                            }
+                        }
+                        if (good)
+                        {
+                            count++;
+                        }
+//                        count++;
+//                        System.out.println("count = " + count + ". | because for start " + idToCell[paths.get(startGoalColour).getFirst()] + ", end " + idToCell[endGoals[startGoalColour]] + " is not in this component");
                     }
                 }
             }
         }
-        for (int endGoalColour : ends)
+        for (int endGoalColour : ends.get(chosenComponent))
         {
             isNodeOnlyInOneComponent = true;
             component = -999;
@@ -545,10 +569,23 @@ public class Solver extends Game {
             {
                 if (componentGoals.get(originalComponent).contains(paths.get(endGoalColour).getFirst()))
                 {
-                    if (!starts.remove(endGoalColour))
+                    if (!starts.get(chosenComponent).remove(endGoalColour))
                     {
-                        count++;
-                        System.out.println("count = " + count + ". | because for end " + idToCell[endGoals[endGoalColour]] + ", start " + idToCell[paths.get(endGoalColour).getFirst()] + " is not in this component");
+                        good = true;
+                        for (int i = 0; i < ends.size(); i++)
+                        {
+                            if (i != chosenComponent && ends.get(i).contains(endGoalColour))
+                            {
+                                good = false;
+                                break;
+                            }
+                        }
+                        if (good)
+                        {
+                            count++;
+                        }
+//                        count++;
+//                        System.out.println("count = " + count + ". | because for end " + idToCell[endGoals[endGoalColour]] + ", start " + idToCell[paths.get(endGoalColour).getFirst()] + " is not in this component");
                     }
                 }
             }
@@ -563,7 +600,7 @@ public class Solver extends Game {
         int count = 1;
         for (int neighbour : Game.getEdges(node))
         {
-            if (colours[neighbour] == NO_COLOUR_VALUE)
+            if (colours[neighbour] == NULL_INT_VALUE)
             {
                 if (!visited[neighbour])
                 {
@@ -578,15 +615,15 @@ public class Solver extends Game {
 
                     if (neighbour == paths.get(colour).getFirst())
                     {
-                        starts.add(colour);
-                        System.out.println("adding start " + idToCell[neighbour]);
-                        System.out.println(starts);
+                        starts.get(newComponentsSize).add(colour);
+//                        System.out.println("adding start " + idToCell[neighbour]);
+//                        System.out.println(starts);
                     }
                     else if (neighbour == endGoals[colour])
                     {
-                        ends.add(colour);
-                        System.out.println("adding end " + idToCell[neighbour]);
-                        System.out.println(ends);
+                        ends.get(newComponentsSize).add(colour);
+//                        System.out.println("adding end " + idToCell[neighbour]);
+//                        System.out.println(ends);
                     }
                 }
             }
@@ -744,7 +781,7 @@ public class Solver extends Game {
             for (int col = 0; col < width; col++)
             {
                 node = cellToId[col][row];
-                if (colours[node] == NO_COLOUR_VALUE)
+                if (colours[node] == NULL_INT_VALUE)
                 {
                     System.out.print("\u001B[0m   ");
                 }
@@ -769,5 +806,10 @@ public class Solver extends Game {
             }
             System.out.println("\u001B[0m");
         }
+    }
+
+    public int getInPath(int colour, int index)
+    {
+        return (paths.get(colour).size() > index) ? paths.get(colour).get(index) : NULL_INT_VALUE;
     }
 }
