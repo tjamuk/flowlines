@@ -9,19 +9,65 @@ public class Solver extends Game {
      */
     int colourCount;
 
+    /**
+     * The number of connected components.
+     */
     public int componentCount;
+
+    /**
+     * Each element index represents a node's id. | Each element's value = the connected component id in which the node resides.
+     */
     public int[] nodeToComponent;
+
+    /**
+     * Each element index represents a component's id. | Each element's value = a set of goals that are adjacent to that component.
+     */
     public ArrayList<Set<Integer>> componentGoals;
+
+    /**
+     * Each element index represents a component's id. | Each element's value = the size of that component.
+     */
     public ArrayList<Integer> componentSizes;
+
+    /**
+     * Each element index represents a component's id. | Each element's value = a set of colours whose goals are adjacent to that component.
+     */
     public ArrayList<Set<Integer>> componentColours;
 
+    /**
+     * Each element index represents a colour's id. | Each element's value = whether the front of a colour's path and its end goal are possible to connect (i.e. share an adjacent component)
+     */
     boolean[] areColoursPossibleToConnect;
+
+    /**
+     * Each element index represents a node's id. | Each element's value = if there is a goal at the node, value = colour of goal. Else NULL_INT_VALUE
+     */
     int[] goalColours;
+
+    /**
+     * Each element index represents a node's id. | Each element's value = whether they are possible to connect.
+     */
     boolean[] visited;
+
+    /**
+     * Each element index represents a new component's id. | Each element's value = a set of colour ids. If a colour is present, then the front of the path of that colour is in that new component.
+     */
     ArrayList<Set<Integer>> starts;
+
+    /**
+     * Each element index represents a new component's id. | Each element's value = a set of colour ids. If a colour is present, then the end goal of that colour is in that new component.
+     */
     ArrayList<Set<Integer>> ends;
+
+    /**
+     * Each element index represents a new component's id. | Each element's value = size of new component.
+     */
     ArrayList<Integer> sizes;
-    int newComponentsSize;
+
+    /**
+     * The number of new components.
+     */
+    int newComponentCount;
 
     /**
      * The paths of the colours.
@@ -34,21 +80,9 @@ public class Solver extends Game {
     int[] lastCells;
 
     /**
-     * An array where each element represents the colour held by a node.
+     * Represents an int having no value.
      */
-//    Colour[] colours;
-//    int[] colours;
-
-    /**
-     * An arraylist of goals
-     * (not an array due to Pair<A> being a generic and generic array creation.)
-     */
-//    int[] startGoals;
-//    int[] endGoals;
-
     static final int NULL_INT_VALUE = -1;
-
-    static ArrayList<Set<Integer>> bottlenecks;
 
     /**
      * Only constructor for model.Game that initialises everything.
@@ -241,27 +275,31 @@ public class Solver extends Game {
     }
 
     /**
-     *
+     * Finds every component and returns whether the resulting components are all valid.
      * @param latestNodeColour - the colour of the node most recently added.
-     * @return
+     * @return whether all resulting components are valid (true = valid, false = invalid)
      */
     public boolean findConnectedComponents(int latestNodeColour) {
 
-        nodeToComponent = new int[Game.size];
+        nodeToComponent = new int[Game.size]; //each element's index represents what node it is, the value represents what component that node is a part of.
         Arrays.fill(nodeToComponent, NULL_INT_VALUE);
-        areColoursPossibleToConnect = new boolean[colourCount];
-        componentCount = 0;
-        componentGoals = new ArrayList<>();
-        componentColours = new ArrayList<>();
+        areColoursPossibleToConnect = new boolean[colourCount]; //each element represents whether for a colour, it's start and end goals share an adjacent component. If they don't, a path is not possible to connect them.
+        componentCount = 0; //number of components.
+        componentGoals = new ArrayList<>(); //each element's index = component. ||| Elem value = what goals are in that component.
+        componentColours = new ArrayList<>(); //each element's index = component. ||| Elem value = what colours are in that component.
         componentSizes = new ArrayList<>();
 
-        for (int node = 0; node < Game.size; node++) {
-            if (nodeToComponent[node] == NULL_INT_VALUE && colours[node] == NULL_INT_VALUE) {
+        for (int node = 0; node < Game.size; node++)
+        {
+            if (nodeToComponent[node] == NULL_INT_VALUE && colours[node] == NULL_INT_VALUE) //if it has NOT been visited AND it has no colour (unfilled) -> in new component.
+            {
+                //in new component
                 componentGoals.add(new HashSet<>());
                 componentColours.add(new HashSet<>());
                 componentSizes.add(0);
                 dfs(node);
-                if (!isComponentValid(latestNodeColour, componentCount)) {
+                if (!isComponentValid(latestNodeColour, componentCount))
+                {
                     return false;
                 }
                 componentCount++;
@@ -270,42 +308,51 @@ public class Solver extends Game {
         return areComponentsValid(latestNodeColour);
     }
 
+    /**
+     * depth-first-search for finding components.
+     * @param node - the node being visited.
+     */
     public void dfs(int node)
     {
         nodeToComponent[node] = componentCount;
         componentSizes.set(componentCount, componentSizes.get(componentCount)+1);
-//        System.out.println(idToCell[node] + " in component " + componentCount + ". Size now = " + componentSizes.get(componentCount));
         for (int neighbour : Game.getEdges(node))
         {
-            if (colours[neighbour] == NULL_INT_VALUE)
+            if (colours[neighbour] == NULL_INT_VALUE) //if neighbour unfilled (no colour)
             {
-                if (nodeToComponent[neighbour] == NULL_INT_VALUE)
+                if (nodeToComponent[neighbour] == NULL_INT_VALUE) //if neighbour hasn't been visited
                 {
-                    dfs(neighbour);
+                    dfs(neighbour); //explore neighbour
                 }
             }
-            else
+            else //neighbour filled (coloured)
             {
                 int goalColour = goalColours[neighbour];
-                if (goalColour != NULL_INT_VALUE)
+                if (goalColour != NULL_INT_VALUE) //if it is a goal
                 {
-                    componentColours.get(componentCount).add(goalColour);
-                    componentGoals.get(componentCount).add(neighbour);
+                    componentColours.get(componentCount).add(goalColour); //add colour to component.
+                    componentGoals.get(componentCount).add(neighbour); //add goal to component.
                 }
             }
         }
     }
 
+    /**
+     * Checks if a single component is valid.
+     * @param latestNodeColour - the colour of the latest coloured node (most recently added to a path)
+     * @param componentId - the index of the component.
+     * @return true = component is valid. | false = component is invalid.
+     */
     public boolean isComponentValid(int latestNodeColour, int componentId)
     {
-        if (componentColours.get(componentId).isEmpty())
+        if (componentColours.get(componentId).isEmpty()) //if the component has does not have an end goal nor start goal, return false.
         {
             return false;
         }
 
         boolean atLeastOneColourPossibleToConnect = false;
 
-        for (int colour : componentColours.get(componentId))
+        for (int colour : componentColours.get(componentId)) //for every colour in component
         {
             if (
                     componentGoals.get(componentId).contains(startGoals[colour])
@@ -313,20 +360,25 @@ public class Solver extends Game {
                     componentGoals.get(componentId).contains(endGoals[colour])
             )
             {
-                atLeastOneColourPossibleToConnect = true;
-                areColoursPossibleToConnect[colour] = true;
+                atLeastOneColourPossibleToConnect = true; //if both goals are in component, they are possible to connect.
+                areColoursPossibleToConnect[colour] = true; //there is at least 1 possible connection.
             }
         }
         if (atLeastOneColourPossibleToConnect)
         {
             return true;
         }
-        else
+        else //if it's the component where the most recently added to path is working towards its end goal.
         {
             return componentColours.get(componentId).contains(latestNodeColour);
         }
     }
 
+    /**
+     * Called after finding components. Checks for all colours if its start and end goals share a component (i.e. possible to connect.)
+     * @param latestNodeColour - the colour of the latest coloured node (most recently added to a path)
+     * @return true - all colours either finished or possible to have goals connected together. | false - else.
+     */
     public boolean areComponentsValid(int latestNodeColour)
     {
         for (int colour = 0; colour < colourCount; colour++)
@@ -347,7 +399,12 @@ public class Solver extends Game {
         return checkForBottleneck(cellToId[x][y]);
     }
 
-    //int x, int y, int component
+
+    /**
+     * Checks for any bottlenecks created when a node is added to a path.
+     * @param node - the node added to a path.
+     * @return true = there is a bottleneck. | false = there is not a bottleneck.
+     */
     public boolean checkForBottleneck(int node)
     {
 //        for (int i = 0; i < componentCount; i++)
@@ -361,6 +418,7 @@ public class Solver extends Game {
 //        }
 
         int component = -999;
+        //checks to see if the node is adjacent to ONLY 1 component.
         for (int neighbour : Game.getEdges(node))
         {
             if (nodeToComponent[neighbour] != -1)
@@ -376,20 +434,21 @@ public class Solver extends Game {
                 }
             }
         }
-        if (component == -999) {System.out.println("not bottleneck");return false;}
+        if (component == -999) {System.out.println("not bottleneck");return false;} //if adjacent to no components, return false
 
         int count = 0;
         boolean isNodeOnlyInOneComponent;
+        //finds how many goal pairs it has that are both in only 1 component.
         for (int colour = 0; colour < colourCount; colour++)
         {
             if (
                     isColourNotDone(colour) &&
-                    componentGoals.get(component).contains(startGoals[colour]) &&
+                    componentGoals.get(component).contains(startGoals[colour]) && //paths.get(colour).getFirst()
                     componentGoals.get(component).contains(endGoals[colour])
-            )
+            ) //if colour path is not complete and component contains both goals of the colour.
             {
                 isNodeOnlyInOneComponent = true;
-                for (int neighbour : Game.getEdges(paths.get(colour).getFirst()))
+                for (int neighbour : Game.getEdges(paths.get(colour).getFirst())) //check if path's end is adjacent to only the added node's component
                 {
                     if (!(nodeToComponent[neighbour] == component || nodeToComponent[neighbour] == -1))
                     {
@@ -414,79 +473,97 @@ public class Solver extends Game {
         }
     }
 
+    /**
+     * Checks for any bottlenecks created when a node is added to a path.
+     * @param node - the node added to a path.
+     * @param component - the component the node is in./
+     * @return true = there is a bottleneck. | false = there is not a bottleneck.
+     */
     public boolean isBottleneck(int node, int component)
     {
         //smaller component must have 1 goal.
-        starts = new ArrayList<>();
-        ends = new ArrayList<>();
-        sizes = new ArrayList<>();
+        starts = new ArrayList<>(); //Each index represents a subcomponent of component. ||| Each element is a set of colour indexes showing that the front of those colours' paths are present in that subcomponent.
+        ends = new ArrayList<>(); //Each index represents a subcomponent of component. ||| Each element is a set of colour indexes showing that the end goals of those colours are present in that subcomponent.
+        sizes = new ArrayList<>(); //Each index represents a subcomponent of component. ||| Each element is the size of the subcomponent.
         int count;
-        newComponentsSize = 0;
+        newComponentCount = 0;
         for (int neighbour : Game.getEdges(node)) //for every neighbour (possible bottleneck) of newly node
         {
-            if (colours[neighbour] == NULL_INT_VALUE)
+            if (colours[neighbour] == NULL_INT_VALUE) //identify a neighbour that is unfilled, this will be checked to be the bottleneck.
             {
                 visited = new boolean[size];
-                visited[neighbour] = true;
+                visited[neighbour] = true; //remove the possible bottleneck from the grid.
                 for (int start : Game.getEdges(neighbour))
                 {
+
+                    //finds an unfilled start point for finding a new component created by removing the bottleneck.
+                    //if the new component found is equal in size to the original component, return false.
+                    //Else, a new component has been created -> check to  see if the new component is valid.
+
                     if (colours[start] == NULL_INT_VALUE)
                     {
                         starts.add(new HashSet<>());
                         ends.add(new HashSet<>());
-//                        System.out.println("\n\n\nSearching from " + idToCell[start]);
-                        count = simpleDfs(start);
-//                        System.out.println(count + " != " + (componentSizes.get(component)-1));
+                        count = dfsForFindingNewComponents(start);
                         if (count != componentSizes.get(component)-1)
                         {
-                            System.out.println("bottleneck");
-//                            System.out.println(starts);
-//                            System.out.println(ends);
                             sizes.add(count);
-                            newComponentsSize++;
-                            return isNewComponentGood(component, neighbour, start); //true
+                            newComponentCount++;
+                            return isNewComponentInvalid(component, neighbour, start);
                         }
                         else
                         {
-                            starts.remove(newComponentsSize);
-                            ends.remove(newComponentsSize);
+                            starts.remove(newComponentCount);
+                            ends.remove(newComponentCount);
                         }
-                        break;
+                        break; //once an unfilled start point is found, won't search anymore.
                     }
                 }
-
             }
         }
-        System.out.println("not bottleneck");
         return false;
     }
 
-    public boolean isNewComponentGood(int originalComponent, int bottleneckNode, int startNode)
+    public int getOtherNewComponents(int bottleneckNode, int startNode)
     {
         int chosenComponent = 0;
-        int chosenComponentSize = starts.get(0).size() + ends.get(0).size();
-        int temp;
+        int chosenComponentSize = starts.get(0).size() + ends.get(0).size(); //it will be faster to search the component with the fewest goals.
+        int goalAndFrontCount;
+
+        //There could be up to 3 components created by removing this bottleneck.
+        //Because there are up to 3 neighbours of the bottleneck node (the 4th would be the most recently added node)
+        //These neighbours are the start search points for the components.
         for (int node : Game.getEdges(bottleneckNode))
         {
             if (colours[node] == NULL_INT_VALUE && node != startNode)
             {
                 starts.add(new HashSet<>());
                 ends.add(new HashSet<>());
-                sizes.add(simpleDfs(node));
-                temp = starts.get(newComponentsSize).size() + ends.get(newComponentsSize).size();
-                if (temp < chosenComponentSize)
+                sizes.add(dfsForFindingNewComponents(node));
+                goalAndFrontCount = starts.get(newComponentCount).size() + ends.get(newComponentCount).size();
+                if (goalAndFrontCount < chosenComponentSize)
                 {
-                    chosenComponentSize = temp;
+                    chosenComponentSize = goalAndFrontCount;
                     chosenComponent = starts.size()-1;
                 }
-                newComponentsSize++;
+                newComponentCount++;
             }
         }
+        return chosenComponent;
+    }
 
-        boolean good;
-        boolean isNodeOnlyInOneComponent;
+    /**
+     * Checks to see if the resulting new component from removing a potential bottleneck is invalid.
+      * @param originalComponent - the component that the new component was created from.
+     * @param bottleneckNode - the bottleneck node whose removal created the new component.
+     * @param startNode - a neighbour of the bottleneck node which was the start point of the search.
+     * @return true = new component invalid. | false = new component valid.
+     */
+    public boolean isNewComponentInvalid(int originalComponent, int bottleneckNode, int startNode)
+    {
+        int chosenComponent = getOtherNewComponents(bottleneckNode, startNode);
+
         int count = 0;
-        int component;
 //
 //        System.out.print("Start = ");
 //        for (int startGoalColour : starts.get(chosenComponent))
@@ -502,99 +579,70 @@ public class Solver extends Game {
 //        }
 //        System.out.println();
 
-        for (int startGoalColour : starts.get(chosenComponent))
-        {
-            isNodeOnlyInOneComponent = true;
-            component = -999;
-            for (int neighbour : Game.getEdges(paths.get(startGoalColour).getFirst()))
-            {
-                if (nodeToComponent[neighbour] != -1)
-                {
-                    if (component == -999)
-                    {
-                        component = nodeToComponent[neighbour];
-                    }
-                    else if (component != nodeToComponent[neighbour])
-                    {
-                        isNodeOnlyInOneComponent = false;
-                    }
-                }
-            }
+        count+= getUniqueGoalPairCount(true, chosenComponent, originalComponent);
+        if (count>1) {return true;}
 
-            if (component != -999 && isNodeOnlyInOneComponent)
-            {
-                if (componentGoals.get(originalComponent).contains(endGoals[startGoalColour])) //paths.get(startGoalColour).getFirst()
-                {
-                    if (!ends.get(chosenComponent).remove(startGoalColour))
-                    {
-                        good = true;
-                        for (int i = 0; i < starts.size(); i++)
-                        {
-                            if (i != chosenComponent && starts.get(i).contains(startGoalColour))
-                            {
-                                good = false;
-                                break;
-                            }
-                        }
-                        if (good)
-                        {
-                            count++;
-                        }
-//                        count++;
-//                        System.out.println("count = " + count + ". | because for start " + idToCell[paths.get(startGoalColour).getFirst()] + ", end " + idToCell[endGoals[startGoalColour]] + " is not in this component");
-                    }
-                }
-            }
-        }
-        for (int endGoalColour : ends.get(chosenComponent))
-        {
-            isNodeOnlyInOneComponent = true;
-            component = -999;
-            for (int neighbour : Game.getEdges(endGoals[endGoalColour]))
-            {
-                if (nodeToComponent[neighbour] != -1)
-                {
-                    if (component == -999)
-                    {
-                        component = nodeToComponent[neighbour];
-                    }
-                    else if (component != nodeToComponent[neighbour])
-                    {
-                        isNodeOnlyInOneComponent = false;
-                    }
-                }
-            }
-
-            if (component != -999 && isNodeOnlyInOneComponent)
-            {
-                if (componentGoals.get(originalComponent).contains(paths.get(endGoalColour).getFirst()))
-                {
-                    if (!starts.get(chosenComponent).remove(endGoalColour))
-                    {
-                        good = true;
-                        for (int i = 0; i < ends.size(); i++)
-                        {
-                            if (i != chosenComponent && ends.get(i).contains(endGoalColour))
-                            {
-                                good = false;
-                                break;
-                            }
-                        }
-                        if (good)
-                        {
-                            count++;
-                        }
-//                        count++;
-//                        System.out.println("count = " + count + ". | because for end " + idToCell[endGoals[endGoalColour]] + ", start " + idToCell[paths.get(endGoalColour).getFirst()] + " is not in this component");
-                    }
-                }
-            }
-        }
+        count+= getUniqueGoalPairCount(false, chosenComponent, originalComponent);
 
         return (count>1);
     }
 
-    public int simpleDfs(int node)
+    /**
+     * Gets the number of unique goal pairs (adjacent to no other component) in the new component.
+     * @param isStart - whether to check in ArrayList<Set<Integer>> 'starts' (true) or 'ends' (false)
+     * @param smallestComponent - the new component with the fewest number of fronts and end goals.
+     * @param originalComponent - the component from which the new components were created.
+     * @return the number of unique goal pairs.
+     */
+    public int getUniqueGoalPairCount(boolean isStart, int smallestComponent, int originalComponent)
+    {
+        boolean isNodeOnlyInOneComponent; boolean isOnlyInOneNewComponent; int count = 0;
+        for (int colour : ((isStart)? starts : ends).get(smallestComponent))
+        {
+            //find whether colour is only adjacent to original component.
+            isNodeOnlyInOneComponent = true;
+            for (int neighbour : Game.getEdges((isStart)? paths.get(colour).getFirst() : endGoals[colour]))
+            {
+                if (nodeToComponent[neighbour] != NULL_INT_VALUE && nodeToComponent[neighbour] != originalComponent)
+                {
+                    isNodeOnlyInOneComponent = false;
+                    break;
+                }
+            }
+
+            if (isNodeOnlyInOneComponent)
+            {
+                if (componentGoals.get(originalComponent).contains((isStart)? endGoals[colour] : paths.get(colour).getFirst())) //if the original component contained the opposite end (e.g. for front of path -> end goal)
+                {
+                    if ( !(((isStart)? ends : starts).get(smallestComponent)).remove(colour) ) //if it's opposite end is in the new component, remove from opposite end.
+                    {
+                        isOnlyInOneNewComponent = true;
+                        //it may not be a bottleneck if available in other created new components so check for so.
+                        for (int i = 0; i < ((isStart)? starts : ends).size(); i++)
+                        {
+                            if (i != smallestComponent && ((isStart)? starts : ends).get(i).contains(colour))
+                            {
+                                isOnlyInOneNewComponent = false;
+                                break;
+                            }
+                        }
+                        if (isOnlyInOneNewComponent)
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * depth first search for finding new components
+     * @param node - the node being visited
+     * @return the number of nodes searched.
+     */
+    public int dfsForFindingNewComponents(int node)
     {
         visited[node] = true;
         int count = 1;
@@ -604,7 +652,7 @@ public class Solver extends Game {
             {
                 if (!visited[neighbour])
                 {
-                    count += simpleDfs(neighbour);
+                    count += dfsForFindingNewComponents(neighbour);
                 }
             }
             else
@@ -615,13 +663,13 @@ public class Solver extends Game {
 
                     if (neighbour == paths.get(colour).getFirst())
                     {
-                        starts.get(newComponentsSize).add(colour);
+                        starts.get(newComponentCount).add(colour);
 //                        System.out.println("adding start " + idToCell[neighbour]);
 //                        System.out.println(starts);
                     }
                     else if (neighbour == endGoals[colour])
                     {
-                        ends.get(newComponentsSize).add(colour);
+                        ends.get(newComponentCount).add(colour);
 //                        System.out.println("adding end " + idToCell[neighbour]);
 //                        System.out.println(ends);
                     }
@@ -631,118 +679,10 @@ public class Solver extends Game {
         return count;
     }
 
-//    public boolean findBottlenecks(int node, ArrayList<Integer> addedBottlenecks) //node = most recently added node.
-//    {
-//        int xNode = idToCell[node].getCol(), yNode = idToCell[node].getRow();
-//        int xNeighbour; int yNeighbour; int neighbour;
-//
-//        for (int direction = 0; direction < ADDENDS_LENGTH; direction++) //in every direction (for every neighbour), checks for bottlenecks.
-//        {
-//            xNeighbour = xNode + ADDENDS_TO_FIND_NEIGHBOURS[direction].getCol();
-//            yNeighbour = yNode + ADDENDS_TO_FIND_NEIGHBOURS[direction].getRow();
-//
-//            if (isNodeInGrid(xNeighbour, yNeighbour))
-//            {
-//                neighbour = cellToId[xNeighbour][yNeighbour];
-//                System.out.println(idToCell[neighbour]); System.out.println(nodeToComponent[neighbour]); System.out.println();
-//                isBottleneck(
-//                        neighbour,
-//                        componentGoals.get(nodeToComponent[neighbour]).size(),
-//                        direction,
-//                        0
-//                );
-//            }
-//        }
-//
-//        if (nodeToIsBottleneck)
-//    }
-
     public int getComponent(int node)
     {
         return 0;
     }
-
-//    public boolean isBottleneck(int cell, int goalCount, int direction, int current)
-//    {
-//        int xCell = idToCell[cell].getCol();
-//        int yCell = idToCell[cell].getRow();
-//        int x1; int y1; int x2; int y2; int direction1; int direction2; int xOther; int yOther; //int other
-//
-//        boolean isBottleneck = false;
-//
-//        Set<Integer> b = new HashSet<>();
-//
-//        if (direction < 2)
-//        {
-//            direction1 = 2;
-//            direction2 = 3;
-////            other = (direction==0)? 1 : 0;
-//        }
-//        else
-//        {
-//            direction1 = 0;
-//            direction2 = 1;
-////            other = (direction==2)? 3 : 2;
-//        }
-//
-//        while (true)
-//        {
-//            x1 = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction1].getCol();
-//            y1 = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction1].getRow();
-//
-//            x2 = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction2].getCol();
-//            y2 = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction2].getRow();
-//
-//            if (
-//                    !isNodeInGrid(x1, y1) ||
-//                            !isNodeInGrid(x2, y2) ||
-//                            colours[cellToId[x1][y1]] != NO_COLOUR_VALUE ||
-//                            colours[cellToId[x2][y2]] != NO_COLOUR_VALUE
-//            )
-//            {
-//                break;
-//            }
-//
-//            xOther = xCell + ADDENDS_TO_FIND_NEIGHBOURS[direction].getCol();
-//            yOther = yCell + ADDENDS_TO_FIND_NEIGHBOURS[direction].getRow();
-//
-//            if (!isNodeInGrid(xOther, yOther) || colours[cellToId[xOther][yOther]] != NO_COLOUR_VALUE)
-//            {
-//                b.add(cell);
-//                isBottleneck = true;
-//                break;
-//            }
-//            else if (current != goalCount)
-//            {
-//                b.add(cell);
-//                //continue
-//                xCell = xOther;
-//                yCell = yOther;
-//                cell = cellToId[xOther][yOther];
-//                current++;
-//            }
-//            else
-//            {
-//                break;
-//            }
-//        }
-//
-//        if (isBottleneck)
-//        {
-//            while (bottlenecks.size() < b.size() + 1)
-//            {
-//                bottlenecks.add(new HashSet<>());
-//            }
-//
-//            bottlenecks.get(b.size()).addAll(b);
-//            return true;
-//        }
-//        else
-//        {
-//            return false;
-//        }
-//
-//    }
 
     public void addPath(Cell[] path)
     {
